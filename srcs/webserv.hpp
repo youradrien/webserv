@@ -11,10 +11,21 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdexcept>  // for std::invalid_argument
+#include <vector>
+#include <map> 
 
 #define PORT 8080
 #define BACKLOG 10
 #define MAX_EVENTS 10
+
+struct LocationConfig 
+{
+    std::string path;
+    std::string root;
+    std::vector<std::string> allowed_methods;
+    std::string redirect_url;
+    bool autoindex = false;
+};
 
 class Webserv
 {
@@ -22,12 +33,22 @@ class Webserv
         void handle_client(int client_socket);
         int 
             server_socket,
-            client_socket;
+            client_socket,
+            port;
         struct sockaddr_in 
             server_addr, 
             client_addr;
         socklen_t 
             client_addr_len;
+        std::string 
+            host,
+            server_name;
+        std::map<int, std::string> 
+            error_pages;
+        size_t 
+            client_max_body_size;
+        std::vector<LocationConfig>
+            locations;
     public:
         Webserv(void);
         ~Webserv();
@@ -36,14 +57,13 @@ class Webserv
 
 Webserv::Webserv(void)
 {
-
+    this->port = PORT;
     this->client_addr_len = sizeof(this->client_addr);
 
     // create server socket
     this->server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (this->server_socket < 0)
     {
-        std::cerr << "Error creating socket!" << std::endl;
         throw std::invalid_argument("Error creating socket!");
     }
 
@@ -53,11 +73,11 @@ Webserv::Webserv(void)
     this->server_addr.sin_addr.s_addr = INADDR_ANY;
     this->server_addr.sin_port = htons(PORT);
 
-    // Bind socket to address and port
+    // bind socket to address and port
+    // (turns [address, port] -> [fd] )
     if (bind(this->server_socket, (struct sockaddr*)&this->server_addr, sizeof(this->server_addr)) < 0)
     {
         close(this->server_socket);
-        std::cerr << "Error binding socket!" << std::endl;
         throw std::invalid_argument("Error creating socket!");;
     }
 }
@@ -106,49 +126,44 @@ void Webserv::handle_client(int client_socket)
 
 void Webserv::start(void)
 {
-    // Start listening for incoming connections
+    // start listening on this socket (fd)
     if (listen(server_socket, BACKLOG) < 0)
     {
-        std::cerr << "Error listening on socket!" << std::endl;
         close(server_socket);
         throw std::invalid_argument("Error listening on socket");
     }
 
     std::cout << "Server is listening on port " << PORT << "..." << std::endl;
 
-    // set up poll structure to monitor server socket
+    // set up poll structure to monitor 1 server socket
     struct pollfd fds[MAX_EVENTS];
     fds[0].fd = server_socket;
-    fds[0].events = POLLIN; // Watch for incoming connections
-
+    fds[0].events = POLLIN; // watch incoming connections
     while (true)
     {
-        // Wait for events on the server socket or client sockets
-        int ret = poll(fds, 1, -1); // Block indefinitely for events
+        // wait for events on the server socket or client sockets
+        int ret = poll(fds, 1, -1); // block indefinitely for events
         if (ret < 0)
         {
-            std::cerr << "Error in poll()" << std::endl;
+            std::cerr << "cant in poll()??" << std::endl;
             break;
         }
 
-        // Check if there is an incoming connection on the server socket
+        // check if incoming connection on server socket
         if (fds[0].revents & POLLIN)
         {
             client_socket = accept(server_socket, (struct sockaddr*)&this->client_addr, &this->client_addr_len);
             if (client_socket < 0) {
-                std::cerr << "Error accepting connection!" << std::endl;
+                std::cerr << "error accepting cnection!" << std::endl;
                 continue;
             }
 
-            std::cout << "Accepted new connection..." << std::endl;
-
-            // Handle the client request
+            std::cout << "accpt new cnection.." << std::endl;
+            // handle it 
             this->handle_client(client_socket);
         }
     }
-    // Clean up
     close(server_socket);
 }
-
 
 #endif
