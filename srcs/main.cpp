@@ -9,12 +9,19 @@ int main(int argc, char **argv)
     }
     (void)(argv);
     Webserv w;
+    if(!w.parseConfigFile(argv[1]))
+    {
+        std::cout << "Error parsing:\n \033[36m "<< argv[1]<< "[.conf]\033[0m " 
+        << std::endl;
+        return (EXIT_FAILURE);
+    }
     // create server
     try{
         w = Webserv();  // Invalid input
     } catch (const std::invalid_argument& e)
     {
         std::cerr << "\033[33mError creating the server: \033[0m" << e.what() << std::endl;
+        return (EXIT_FAILURE);
     }
     // start the server
     try{
@@ -22,6 +29,7 @@ int main(int argc, char **argv)
     } catch (const std::invalid_argument& e)
     {
         std::cerr << "\033[33m Error starting the server: \033[0m" << e.what() << std::endl;
+        return (EXIT_FAILURE);
     }
     return 0;
 }

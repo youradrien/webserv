@@ -23,7 +23,7 @@ Webserv::Webserv(void)
     if (bind(this->server_socket, (struct sockaddr*)&this->server_addr, sizeof(this->server_addr)) < 0)
     {
         close(this->server_socket);
-        throw std::invalid_argument("Error creating socket!");;
+        throw std::invalid_argument("Error binding socket!");
     }
 }
 

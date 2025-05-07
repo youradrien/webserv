@@ -58,11 +58,13 @@ class Webserv
             client_max_body_size;
         std::vector<LocationConfig>
             locations;
+        std::vector<ServerConfig>
+            servers;
     public:
-        bool parseConfigFile(const std::string& filename, std::vector<ServerConfig>& servers);
         Webserv(void);
         ~Webserv();
         void start(void);
+        bool parseConfigFile(const std::string& filename);
 };
 
 #endif
