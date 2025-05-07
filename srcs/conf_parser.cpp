@@ -77,7 +77,10 @@ bool Webserv::parseConfigFile(const std::string& filename)
                 {
                     if (key == "root") serv_loc.root = value;
                     else if (key == "autoindex") serv_loc.autoindex = (value == "on");
-                    else if (key == "methods") serv_loc.allowed_methods.push_back(value);
+                    else if (key == "methods") {
+                        serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
+                    }
+                    else if (key == "index") serv_loc.index = (value);
                 }
             }
         }
@@ -85,12 +88,13 @@ bool Webserv::parseConfigFile(const std::string& filename)
     file.close();
     std::cout << "\033[92mSUCCESSFULLY PARSED " << servers.size() << " SERVERS ! \033[0m" << std::endl;
     for (size_t i = 0; i < servers.size(); ++i) {
-        std::cout << "\033[1;96m - Server " << i << ": " << servers[i].host << ":(port)" << servers[i].port << "\033[0m" << std::endl;
+        std::cout << "\033[1;96m - Server [" << i << "]: " << servers[i].host << ":(port)" << servers[i].port << "\033[0m" << std::endl;
         for (size_t j = 0; j < servers[i].locations.size(); ++j) {
             std::cout << " \033[94m     Location: '" << servers[i].locations[j].path << "'\n"
-                      << "\troot: " << servers[i].locations[j].root
-                      << ", autoindex: " << (servers[i].locations[j].autoindex ? "on" : "off")
-                      << ", methods: ";
+                      << "\t -root: " << servers[i].locations[j].root << "\n"
+                      << "\t -index: " << servers[i].locations[j].index << "\n"
+                      << "\t -autoindex: " << (servers[i].locations[j].autoindex ? "on" : "off") << "\n"
+                      << "\t -methods: ";
                       for (size_t k = 0; k < servers[i].locations[j].allowed_methods.size(); ++k)
                       std::cout << servers[i].locations[j].allowed_methods[k] << std::endl;
                       std::cout << "\033[0m" << std::endl;

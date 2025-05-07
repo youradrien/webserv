@@ -24,6 +24,7 @@ struct LocationConfig
 {
     std::string path;
     std::string root;
+    std::string index;
     std::vector<std::string> allowed_methods;
     std::string redirect_url;
     bool autoindex;
