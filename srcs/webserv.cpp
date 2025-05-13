@@ -94,7 +94,6 @@ void Webserv::init(void)
     for(uint32_t i = 0; i < this->servers.size(); i ++)
     {
         ServerConfig serv_ = this->servers[i];
-        serv_.port = PORT;
         serv_.client_addr_len = sizeof(serv_.client_addr);
 
         // create server socket
@@ -116,9 +115,16 @@ void Webserv::init(void)
         // (turns [address, port] -> [fd] )
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
         {
+            if (errno == EADDRINUSE){
+                std::cerr << "\033[36mServer-"<<i << " Port "<< serv_.port << " is already in use! \033[0m" << std::endl;
+                close(serv_.server_socket);
+                continue;
+            }
             close(serv_.server_socket);
             throw std::invalid_argument("Error binding socket!");
-        }   
+        }
+        
+        std::cout << "\033[32mServer-" << i << " is ready to accept connections on port " << serv_.port << "\033[0m "<< std::endl;
     }
 }
 
