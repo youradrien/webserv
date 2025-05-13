@@ -15,21 +15,21 @@ int main(int argc, char **argv)
         << std::endl;
         return (EXIT_FAILURE);
     }
-    // create server
+    // init all servers (TCPs, sockets ...)
     try{
-        w = Webserv();  // Invalid input
+        w.init();
     } catch (const std::invalid_argument& e)
     {
-        std::cerr << "\033[33mError creating the server: \033[0m" << e.what() << std::endl;
+        std::cerr << "\033[31mError initializing servesConfigs: \033[0m" << e.what() << std::endl;
         return (EXIT_FAILURE);
     }
-    // start the server
-    try{
-        w.start();  // Invalid input
-    } catch (const std::invalid_argument& e)
-    {
-        std::cerr << "\033[33m Error starting the server: \033[0m" << e.what() << std::endl;
-        return (EXIT_FAILURE);
-    }
+    // // start the server
+    // try{
+    //     w.start();  // Invalid input
+    // } catch (const std::invalid_argument& e)
+    // {
+    //     std::cerr << "\033[33m Error starting the server: \033[0m" << e.what() << std::endl;
+    //     return (EXIT_FAILURE);
+    // }
     return 0;
 }

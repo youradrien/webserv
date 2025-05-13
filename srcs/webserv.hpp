@@ -15,6 +15,7 @@
 #include <map> 
 #include <stack> 
 #include <sstream>
+#include <arpa/inet.h>
 
 #define PORT 8080
 #define BACKLOG 10
@@ -49,7 +50,6 @@ struct LocationConfig
         root,
         cgi_extension,
         cgi_path,
-        upload_store,
         index;
     std::vector<std::string> allowed_methods;
     std::string redirect_url;
@@ -94,6 +94,7 @@ class Webserv
     public:
         Webserv(void);
         ~Webserv();
+        void init(void);
         void start(void);
         bool parseConfigFile(const std::string& filename);
 };

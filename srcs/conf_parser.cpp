@@ -45,6 +45,11 @@ static std::vector<std::string> split_string(const std::string& input)
 
 bool Webserv::parseConfigFile(const std::string& filename)
 {
+     if (filename.empty())
+    {
+        std::cerr << "empty .conf file!" << std::endl;
+        return false;
+    }
     std::ifstream file(filename.c_str());
     if (!file.is_open())
     {
@@ -143,7 +148,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
         if(!servers[i].client_max_body_size)
             servers[i].client_max_body_size = parseSize("10M");
 
-        std::cout << "\033[1;96m__________ [Server " << i << "] ___________ \n - host: " << servers[i].host << "]\n - port: " << servers[i].port <<"]\033[0m" << std::endl;
+        std::cout << "\033[1;96m__________ [Server " << i << "] ________ \n - host: " << servers[i].host << "]\n - port: " << servers[i].port <<"]\033[0m" << std::endl;
         std::cout << "\033[1;96m - server_name: '" << servers[i].server_name << "' \n"; 
         std::cout << " - client_max_body_size: " << servers[i].client_max_body_size << " (bytes) \n";
         std::cout << " - error_pages: \n";
