@@ -20,21 +20,51 @@
 #define BACKLOG 10
 #define MAX_EVENTS 10
 
+/*
+    route / {
+        methods GET POST;
+        root /var/www/html;
+        index index.html;
+        autoindex off;
+    }
+
+    route /uploads {
+        methods POST;
+        root /var/www/uploads;
+        upload_store /var/www/uploads;
+    }
+
+    route /cgi-bin {
+        methods GET POST;
+        root /var/www/cgi-bin;
+        cgi_extension .py;
+        cgi_path /usr/bin/python3;
+    }
+
+*/
 struct LocationConfig 
 {
-    std::string path;
-    std::string root;
-    std::string index;
+    std::string 
+        path,
+        root,
+        cgi_extension,
+        cgi_path,
+        upload_store,
+        index;
     std::vector<std::string> allowed_methods;
     std::string redirect_url;
     bool autoindex;
 };
 
-struct ServerConfig {
-    std::string host;
+struct ServerConfig
+{
+    std::string 
+        host,
+        server_name;
     int port;
-    std::string server_name;
+    size_t client_max_body_size;
     std::vector<LocationConfig> locations;
+    std::vector<std::pair<unsigned int, std::string> > error_pages;
 };
 
 class Webserv
