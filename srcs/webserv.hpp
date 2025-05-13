@@ -61,7 +61,15 @@ struct ServerConfig
     std::string 
         host,
         server_name;
-    int port;
+    int 
+        port,
+        server_socket,
+        client_socket;
+    struct sockaddr_in 
+        server_addr, 
+        client_addr;
+    socklen_t 
+        client_addr_len;
     size_t client_max_body_size;
     std::vector<LocationConfig> locations;
     std::vector<std::pair<unsigned int, std::string> > error_pages;
@@ -71,26 +79,7 @@ class Webserv
 {
     private:
         void handle_client(int client_socket);
-        int 
-            server_socket,
-            client_socket,
-            port;
-        struct sockaddr_in 
-            server_addr, 
-            client_addr;
-        socklen_t 
-            client_addr_len;
-        std::string 
-            host,
-            server_name;
-        std::map<int, std::string> 
-            error_pages;
-        size_t 
-            client_max_body_size;
-        std::vector<LocationConfig>
-            locations;
-        std::vector<ServerConfig>
-            servers;
+        std::vector<ServerConfig> servers;
     public:
         Webserv(void);
         ~Webserv();

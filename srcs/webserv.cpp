@@ -46,14 +46,18 @@ Webserv::Webserv(void)
 
 Webserv::~Webserv()
 {
-    if (this->client_socket > 0) {
-        close(this->client_socket);
-        std::cout << "Client socket closed." << std::endl;
-    }
+    for(uint32_t i = 0; i < this->servers.size(); i ++)
+    {
+        ServerConfig serv_ = this->servers[i];
+        if (serv_.client_socket > 0) {
+            close(serv_.client_socket);
+            std::cout << "Client socket closed." << std::endl;
+        }
 
-    if (this->server_socket > 0) {
-        close(this->server_socket);
-        std::cout << "Server socket closed." << std::endl;
+        if (serv_.server_socket > 0) {
+            close(serv_.server_socket);
+            std::cout << "Server socket closed." << std::endl;
+        }
     }
 }
 
@@ -87,74 +91,80 @@ void Webserv::handle_client(int client_socket)
 
 void Webserv::init(void)
 {
-    this->port = PORT;
-    this->client_addr_len = sizeof(this->client_addr);
-
-    // create server socket
-    this->server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (this->server_socket < 0)
-        throw std::invalid_argument("Error creating socket!");
-    if(this->servers[0].host.empty() || this->servers[0].port <= 0)
+    for(uint32_t i = 0; i < this->servers.size(); i ++)
     {
-        throw std::invalid_argument("Wrong .conf initialization [ports | domain | methods | root]!");
+        ServerConfig serv_ = this->servers[i];
+        serv_.port = PORT;
+        serv_.client_addr_len = sizeof(serv_.client_addr);
+
+        // create server socket
+        serv_.server_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (serv_.server_socket < 0)
+            throw std::invalid_argument("Error creating socket!");
+        if(serv_.host.empty() || serv_.port <= 0)
+        {
+            throw std::invalid_argument("Wrong .conf initialization [ports | domain | methods | root]!");
+        }
+
+        // set server socket address (IPv4, localhost, port 8080)
+        memset(&serv_.server_addr, 0, sizeof(serv_.server_addr));
+
+        serv_.server_addr.sin_family = AF_INET;
+        serv_.server_addr.sin_addr.s_addr = inet_addr(serv_.host.c_str()); // like "127.0.0.1"
+        serv_.server_addr.sin_port = htons(serv_.port); // port is 8080
+        // bind socket to address and port
+        // (turns [address, port] -> [fd] )
+        if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
+        {
+            close(serv_.server_socket);
+            throw std::invalid_argument("Error binding socket!");
+        }   
     }
-
-    // set server socket address (IPv4, localhost, port 8080)
-    memset(&this->server_addr, 0, sizeof(this->server_addr));
-    /*
-    this->server_addr.sin_family = AF_INET;
-    this->server_addr.sin_addr.s_addr = INADDR_ANY;
-    this->server_addr.sin_port = htons(PORT);
-    */
-    this->server_addr.sin_addr.s_addr = inet_addr(this->servers[0].host.c_str()); // like "127.0.0.1"
-    this->server_addr.sin_port = htons(this->servers[0].port); // port is 8080
-    // bind socket to address and port
-    // (turns [address, port] -> [fd] )
-    if (bind(this->server_socket, (struct sockaddr*)&this->server_addr, sizeof(this->server_addr)) < 0)
-    {
-        close(this->server_socket);
-        throw std::invalid_argument("Error binding socket!");
-    }   
 }
 
 void Webserv::start(void)
 {
-    // start listening on this socket (fd)
-    if (listen(server_socket, BACKLOG) < 0)
+    for(uint32_t i = 0; i < this->servers.size(); i ++)
     {
-        close(server_socket);
-        throw std::invalid_argument("Error listening on socket");
-    }
-
-    std::cout << "Server is listening on port " << PORT << "..." << std::endl;
-
-    // set up poll structure to monitor 1 server socket
-    struct pollfd fds[MAX_EVENTS];
-    fds[0].fd = server_socket;
-    fds[0].events = POLLIN; // watch incoming connections
-    while (true)
-    {
-        // wait for events on the server socket or client sockets
-        int ret = poll(fds, 1, -1); // block indefinitely for events
-        if (ret < 0)
+        ServerConfig serv_ = this->servers[i];
+        // start listening on serv_. socket (fd)
+        if (listen(serv_.server_socket, BACKLOG) < 0)
         {
-            std::cerr << "cant in poll()??" << std::endl;
-            break;
+            close(serv_.server_socket);
+            throw std::invalid_argument("Error listening on socket");
         }
 
-        // check if incoming connection on server socket
-        if (fds[0].revents & POLLIN)
+        std::cout << "Server" << i << " is listening on port " << PORT << "..." << std::endl;
+
+        // set up poll structure to monitor 1 server socket
+        struct pollfd fds[MAX_EVENTS];
+        fds[0].fd = serv_.server_socket;
+        fds[0].events = POLLIN; // watch incoming connections
+        while (true)
         {
-            client_socket = accept(server_socket, (struct sockaddr*)&this->client_addr, &this->client_addr_len);
-            if (client_socket < 0) {
-                std::cerr << "error accepting cnection!" << std::endl;
-                continue;
+            // wait for events on the server socket or client sockets
+            int ret = poll(fds, 1, -1); // block indefinitely for events
+            if (ret < 0)
+            {
+                std::cerr << "cant in poll()??" << std::endl;
+                break;
             }
 
-            std::cout << "accpt new cnection.." << std::endl;
-            // handle it 
-            this->handle_client(client_socket);
+            // check if incoming connection on server socket
+            if (fds[0].revents & POLLIN)
+            {
+                serv_.client_socket = accept(serv_.server_socket, (struct sockaddr*)&serv_.client_addr, &serv_.client_addr_len);
+                if (serv_.client_socket < 0)
+                {
+                    std::cerr << "error accepting cnection!" << std::endl;
+                    continue;
+                }
+
+                std::cout << "accpt new cnection.." << std::endl;
+                // handle it 
+                this->handle_client(serv_.client_socket);
+            }
         }
+        close(serv_.server_socket);
     }
-    close(server_socket);
 }
