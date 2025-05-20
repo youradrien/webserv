@@ -16,33 +16,36 @@
 #include <stack> 
 #include <sstream>
 #include <arpa/inet.h>
+#include <filesystem>
+#include <sys/stat.h>
 
 #define PORT 8080
 #define BACKLOG 10
 #define MAX_EVENTS 10
 
 /*
-    route / {
-        methods GET POST;
-        root /var/www/html;
-        index index.html;
-        autoindex off;
-    }
+    routes examples: 
+        route / {
+            methods GET POST;
+            root /var/www/html;
+            index index.html;
+            autoindex off;
+        }
 
-    route /uploads {
-        methods POST;
-        root /var/www/uploads;
-        upload_store /var/www/uploads;
-    }
+        route /uploads {
+            methods POST;
+            root /var/www/uploads;
+            upload_store /var/www/uploads;
+        }
 
-    route /cgi-bin {
-        methods GET POST;
-        root /var/www/cgi-bin;
-        cgi_extension .py;
-        cgi_path /usr/bin/python3;
-    }
-
+    struct sockaddr_in {
+        sa_family_t    sin_family;   // Address family: ex AF_INET -> IPv4
+        in_port_t      sin_port;     // Port number: ex 443(HTTPs)
+        struct in_addr sin_addr;     // Internet address (struct in_addr)
+        char           sin_zero[8];  // Padding to make the structure size 16 bytes
+    };
 */
+
 struct LocationConfig 
 {
     std::string 
@@ -51,7 +54,9 @@ struct LocationConfig
         cgi_extension,
         cgi_path,
         index;
-    std::vector<std::string> allowed_methods;
+    std::vector<std::string> 
+        allowed_methods,
+        index_files;
     std::string redirect_url;
     bool autoindex;
 };
@@ -70,21 +75,24 @@ struct ServerConfig
         client_addr;
     socklen_t 
         client_addr_len;
-    size_t client_max_body_size;
-    std::vector<LocationConfig> locations;
-    std::vector<std::pair<unsigned int, std::string> > error_pages;
+    size_t 
+        client_max_body_size;
+    std::vector<LocationConfig>
+        locations;
+    std::vector<std::pair<unsigned int, std::string> > 
+        error_pages;
 };
 
 class Webserv
 {
     private:
-        void handle_client(int client_socket);
+        void handle_client(int client_socket, const ServerConfig &serv);
         std::vector<ServerConfig> servers;
     public:
         Webserv(void);
         ~Webserv();
         void init(void);
-        void start(void);
+        void start(void);   
         bool parseConfigFile(const std::string& filename);
 };
 

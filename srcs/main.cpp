@@ -24,12 +24,12 @@ int main(int argc, char **argv)
         return (EXIT_FAILURE);
     }
     // // start the server
-    // try{
-    //     w.start();  // Invalid input
-    // } catch (const std::invalid_argument& e)
-    // {
-    //     std::cerr << "\033[33m Error starting the server: \033[0m" << e.what() << std::endl;
-    //     return (EXIT_FAILURE);
-    // }
+    try{
+        w.start();  // Invalid input
+    } catch (const std::invalid_argument& e)
+    {
+        std::cerr << "\033[33m Error starting the server: \033[0m" << e.what() << std::endl;
+        return (EXIT_FAILURE);
+    }
     return 0;
 }

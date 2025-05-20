@@ -36,3 +36,19 @@ server {
         autoindex off;
     }
 }
+
+
+server {
+    host 127.0.0.1;
+    port 8082;
+    # This will be used if host header doesn't match the one above
+    error_page 500 /errors/500.html;
+    client_max_body_size 500000;
+    server_name js.com;
+
+    location /api {
+        root /var/www/api;
+        methods GET;
+        autoindex off;
+    }
+}
