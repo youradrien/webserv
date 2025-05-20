@@ -65,34 +65,47 @@ void Webserv::init(void)
     for(uint32_t i = 0; i < this->servers.size(); i ++)
     {
         ServerConfig serv_ = this->servers[i];
-        serv_.client_addr_len = sizeof(serv_.client_addr);
-
-        // create server socket
-        serv_.server_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (serv_.port < 1024)
-            std::cerr << "Warning: Using a port below 1024 may require elevated privileges." << std::endl;
-        if (serv_.server_socket < 0)
-        {
-            std::cerr << "Error creating socket!" << std::endl;
-            continue;
-        }
         if(serv_.host.empty() || serv_.port <= 0)
         {
             std::cerr << "Wrong .conf initialization [ports | domain | methods | root]!" << std::endl;
             continue;
         }
 
-        // set server socket address (IPv4, localhost, port 8080)
+        serv_.client_addr_len = sizeof(serv_.client_addr);
+        // create server socket
+        serv_.server_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (serv_.port < 1024)
+            std::cerr << "Warning: Using a port below 1024 may require elevated privileges." << std::endl;
+        if (serv_.server_socket < 0)
+        {
+            perror("Error creating socket");
+            continue;
+        }else {
+            // std::cout << "Socket created successfully, server_socket = " << serv_.server_socket  << std::endl;
+            // Allow address reuse
+            int opt = 1;
+            if (setsockopt(serv_.server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+                std::cerr << "Error setting socket options: " << strerror(errno) << std::endl;
+                close(serv_.server_socket);
+                continue;;
+            }
+        }
+     
         memset(&serv_.server_addr, 0, sizeof(serv_.server_addr));
-
         serv_.server_addr.sin_family = AF_INET;
-        serv_.server_addr.sin_addr.s_addr = inet_addr(serv_.host.c_str()); // like "127.0.0.1"
-        serv_.server_addr.sin_port = htons(serv_.port); // port is 8080
-        int opt = 1;
-        if (setsockopt(serv_.server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-            perror("setsockopt(SO_REUSEADDR) failed");
+        serv_.server_addr.sin_port = htons(serv_.port);
+        // host string to network address (binary form)
+        in_addr_t address = inet_addr(serv_.host.c_str());
+        serv_.server_addr.sin_addr.s_addr = address; // like "127.0.0.1"
+        // check if ip address is valid
+        if (address == INADDR_NONE)
+        {
+            std::cerr << "Invalid IP address format: " << serv_.host << std::endl;
+            close(serv_.server_socket);
             exit(EXIT_FAILURE);
         }
+
+  
         // bind socket to address and port
         // (turns [address, port] -> [fd] )
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
@@ -102,10 +115,20 @@ void Webserv::init(void)
                 close(serv_.server_socket);
                 continue;
             }
+            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
             close(serv_.server_socket);
-            throw std::invalid_argument("Error binding socket!");
+            continue;
         }
-        
+        // std::cout << "Socket bound to port " << serv_.port << " successfully!" << std::endl; 
+
+        // Listen for incoming connections
+        if (listen(serv_.server_socket, SOMAXCONN) < 0)
+        {
+            std::cerr << "Error listening on socket: " << strerror(errno) << std::endl;
+            close(serv_.server_socket);
+            return;
+        }
+
         std::cout << "\033[32mServer[" << i << "] is ready to accept connections on port " << serv_.port << "\033[0m "<< std::endl;
     }
 }
@@ -156,8 +179,14 @@ static std::string resolve_path(const ServerConfig& server, const std::string& u
 void Webserv::handle_client(int client_socket, const ServerConfig &serv)
 {
     char buffer[1024];
-    int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-    if (bytes_received < 0 /*|| ((int *)(serv)) == NULL */ )
+    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    if (bytes_received < 0)
+    {
+        std::cerr << "Error receiving data from client!" << std::endl;
+        close(client_socket);
+        return;
+    }
+    if (bytes_received > 0)
     {
         std::cerr << "Error receiving data from client!" << std::endl;
         close(client_socket);
@@ -201,48 +230,59 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
 
 void Webserv::start(void)
 {
-    for(uint32_t i = 0; i < this->servers.size(); i ++)
+    std::vector<pollfd> poll_fds;
+
+    // add all server sockets
+    for (size_t i = 0; i < this->servers.size(); ++i)
     {
-        ServerConfig serv_ = this->servers[i];
-        // start listening on serv_. socket (fd)
-        if (listen(serv_.server_socket, BACKLOG) < 0)
-        {
-            close(serv_.server_socket);
-            std::cout << "SERVER " << i << "Error listening on socket" << std::endl;
-            continue;
+        struct pollfd pfd;
+        pfd.fd = this->servers[i].server_socket;
+        pfd.events = POLLIN;
+        poll_fds.push_back(pfd);
+    }
+    std::map<int, ServerConfig*> fd_to_server;
+    for (size_t i = 0; i < servers.size(); ++i)
+        fd_to_server[servers[i].server_socket] = &servers[i];
+
+    // poll() loop on all servers
+    while (true)
+    {
+        int ret = poll(poll_fds.data(), poll_fds.size(), -1);
+        if (ret < 0) {
+            perror("poll");
+            break;
         }
-
-        std::cout << "Server" << i << " is listening on port " << PORT << "..." << std::endl;
-
-        // set up poll structure to monitor 1 server socket
-        struct pollfd fds[MAX_EVENTS];
-        fds[0].fd = serv_.server_socket;
-        fds[0].events = POLLIN; // watch incoming connections
-        while (true)
+        // #pragma omp parallel for    
+        for (size_t i = 0; i < poll_fds.size(); ++i)
         {
-            // wait for events on the server socket or client sockets
-            int ret = poll(fds, 1, -1); // block indefinitely for events
-            if (ret < 0)
-            {
-                std::cerr << "cant poll()?? tf" << std::endl;
-                break;
-            }
-
+            struct pollfd& pfd = poll_fds[i];            
+            
             // check if incoming connection on server socket
-            if (fds[0].revents & POLLIN)
+            if (pfd.revents & POLLIN)
             {
-                serv_.client_socket = accept(serv_.server_socket, (struct sockaddr*)&serv_.client_addr, &serv_.client_addr_len);
-                if (serv_.client_socket < 0)
+                // Accept the new connection
+                ServerConfig* serv = fd_to_server[pfd.fd];
+                serv->client_socket = accept(pfd.fd, 
+                    (struct sockaddr*)&serv->client_addr, 
+                    &serv->client_addr_len);
+                if (serv->client_socket < 0)
                 {
-                    std::cerr << "error accepting cnection!" << std::endl;
+                    std::cerr << "Error accepting connection!" << std::endl;
                     continue;
                 }
 
-                std::cout << "accpt new cnection.." << std::endl;
+                // Add the new client socket to the poll array so we can monitor it
+                struct pollfd client_pfd;
+                client_pfd.fd = serv->client_socket;
+                client_pfd.events = POLLIN;
+                poll_fds.push_back(client_pfd);  // Monitor the new client socket
+
+                std::cout << "accpt new cnection.." << serv->port <<  std::endl;
                 // handle it 
-                this->handle_client(serv_.client_socket, serv_);
+                this->handle_client(this->servers[i].client_socket, this->servers[i]);
             }
         }
-        close(serv_.server_socket);
     }
+    for(uint32_t i = 0; i < this->servers.size(); i ++)
+        close(this->servers[i].server_socket);
 }
