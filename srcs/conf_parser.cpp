@@ -141,7 +141,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
     }
     
     file.close();
-    std::cout << "\033[92mSUCCESSFULLY PARSED " << servers.size() << " SERVERS ! \033[0m" << std::endl;
+    std::cout << "\033[92m ==== SUCCESSFULLY PARSED " << servers.size() << " SERVERS ! ==== \033[0m" << std::endl;
     if(true == false)
     {
         for (size_t i = 0; i < servers.size(); ++i)

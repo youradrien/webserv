@@ -64,7 +64,7 @@ void Webserv::init(void)
 {
     for(uint32_t i = 0; i < this->servers.size(); i ++)
     {
-        ServerConfig serv_ = this->servers[i];
+        ServerConfig &serv_ = this->servers[i];
         if(serv_.host.empty() || serv_.port <= 0)
         {
             std::cerr << "Wrong .conf initialization [ports | domain | methods | root]!" << std::endl;
@@ -111,7 +111,7 @@ void Webserv::init(void)
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
         {
             if (errno == EADDRINUSE){
-                std::cerr << "\033[36mServer["<<i << "] Port "<< serv_.port << " is already in use! \033[0m" << std::endl;
+                std::cerr << "\033[36mServer["<<i << "] port "<<  serv_.host << ":" << serv_.port << " is already in use! \033[0m" << std::endl;
                 close(serv_.server_socket);
                 continue;
             }
@@ -119,7 +119,6 @@ void Webserv::init(void)
             close(serv_.server_socket);
             continue;
         }
-        // std::cout << "Socket bound to port " << serv_.port << " successfully!" << std::endl; 
 
         // Listen for incoming connections
         if (listen(serv_.server_socket, SOMAXCONN) < 0)
@@ -128,8 +127,7 @@ void Webserv::init(void)
             close(serv_.server_socket);
             return;
         }
-
-        std::cout << "\033[32mServer[" << i << "] is ready to accept connections on port " << serv_.port << "\033[0m "<< std::endl;
+        std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host << ":" << serv_.port  << "\033[0m "<< std::endl;
     }
 }
 static std::string resolve_path(const ServerConfig& server, const std::string& uri)
@@ -196,10 +194,9 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     // log  received HTTP request
     std::cout << "Received request:\n" << buffer << std::endl;
  
-    //std::string uri = "/"; // Assume you parsed this from the HTTP request
-    //std::string path = resolve_path(serv, uri);
+    std::string uri = "/"; // Assume you parsed this from the HTTP request
+    std::string path = resolve_path(serv, uri);
 
-    /*
     if (path.empty()) 
     {
         // Construct a basic HTTP 404 response
@@ -219,67 +216,102 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
         send(client_socket, response, strlen(response), 0);
     } else if (path == "[AUTOINDEX]") {
         // Generate and send a directory listing
-        send_autoindex_response(client_socket, uri);
+        // send_autoindex_response(client_socket, uri);
     } else {
         // Serve the file
-        serve_file(client_socket, path);
+        // serve_file(client_socket, path);
     }
-    */
+
     close(client_socket); // Close the client socket after sending the response
 }
 
 void Webserv::start(void)
 {
     std::vector<pollfd> poll_fds;
+    std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
+    std::map<int, ServerConfig*> fd_to_server; // server_socket -> svconfig
 
-    // add all server sockets
+
+    // Register all server sockets
     for (size_t i = 0; i < this->servers.size(); ++i)
     {
-        struct pollfd pfd;
+        pollfd pfd;
         pfd.fd = this->servers[i].server_socket;
         pfd.events = POLLIN;
         poll_fds.push_back(pfd);
+        fd_to_server[this->servers[i].server_socket] = &this->servers[i];
     }
-    std::map<int, ServerConfig*> fd_to_server;
-    for (size_t i = 0; i < servers.size(); ++i)
-        fd_to_server[servers[i].server_socket] = &servers[i];
+
+    std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
 
     // poll() loop on all servers
     while (true)
     {
+        std::cout << "clean accepting connection on port " << std::endl;
+std::cout << "[DEBUG] Polling " << poll_fds.size() << " fds: ";
         int ret = poll(poll_fds.data(), poll_fds.size(), -1);
-        if (ret < 0) {
+        if (ret == -1) {
             perror("poll");
             break;
         }
-        // #pragma omp parallel for    
+        std::cout << " nothing gets printed here"  << std::endl;
+
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];            
             
-            // check if incoming connection on server socket
-            if (pfd.revents & POLLIN)
+            // nothing....
+            if (!(pfd.revents & POLLIN))
+                continue;
+
+            // accept new [connection]       
+            if (fd_to_server.count(pfd.fd))
             {
-                // Accept the new connection
                 ServerConfig* serv = fd_to_server[pfd.fd];
-                serv->client_socket = accept(pfd.fd, 
-                    (struct sockaddr*)&serv->client_addr, 
-                    &serv->client_addr_len);
-                if (serv->client_socket < 0)
-                {
-                    std::cerr << "Error accepting connection!" << std::endl;
+
+                int client_fd = accept(pfd.fd,
+                    (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len
+                );
+
+                if (client_fd < 0) {
+                    std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
                     continue;
+                }else{
+                    std::cout << "clean accepting connection on port "<< serv->port << std::endl;
+
                 }
 
-                // Add the new client socket to the poll array so we can monitor it
-                struct pollfd client_pfd;
-                client_pfd.fd = serv->client_socket;
+                // add new client socket to poll
+                pollfd client_pfd;
+                client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
-                poll_fds.push_back(client_pfd);  // Monitor the new client socket
+                poll_fds.push_back(client_pfd);
+                client_fd_to_server[client_fd] = serv;
 
-                std::cout << "accpt new cnection.." << serv->port <<  std::endl;
-                // handle it 
-                this->handle_client(this->servers[i].client_socket, this->servers[i]);
+                std::cout << "accepted new client on port " << serv->port << " (fd: " << client_fd << ")" << std::endl; 
+            }
+            // handle [connection]
+            else
+            {
+                // Client socket: Handle client
+                // ServerConfig* serv = client_fd_to_server[pfd.fd];
+                // this->handle_client(pfd.fd, *serv);
+                // ServerConfig* serv = client_fd_to_server[pfd.fd];
+                // int client_fd = pfd.fd;
+                //this->handle_client(serv.client_socket, serv);
+                /*
+                if (!keep_alive) {
+                    close(client_fd);
+                    client_fd_to_server.erase(client_fd);
+
+                    // Remove from poll_fds
+                    poll_fds.erase(std::remove_if(poll_fds.begin(), poll_fds.end(),
+                        [client_fd](const pollfd& p) { return p.fd == client_fd; }),
+                        poll_fds.end());
+
+                    std::cout << "Closed connection (fd: " << client_fd << ")" << std::endl;
+                }
+                */
             }
         }
     }
