@@ -180,42 +180,35 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)
     {
-        std::cerr << "Error receiving data from client!  : " << client_socket << std::endl;
+        std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
         close(client_socket);
         return;
     }
     buffer[bytes_received] = '\0'; // null-terminate received data
     // log  received HTTP request
-    std::cout << "Received request:\n" << buffer << std::endl;
+    std::cout << "\033[35m--- Received request <----\n" << buffer << "\033[0m"<< std::endl;
  
-    std::string uri = "/"; // Assume you parsed this from the HTTP request
-    std::string path = resolve_path(serv, uri);
+    //std::string uri = "/"; //assumee parsed this from HTTP request
+    std::string path; //= resolve_path(serv, uri);
 
     if (path.empty()) 
     {
         // Construct a basic HTTP 404 response
+        // const char* response =
+        //     "HTTP/1.1 404 Not Found\r\n"
+        //     "Content-Type: text/html\r\n"
+        //     "Content-Length: 134\r\n"
+        //     "Connection: close\r\n"
+        //     "\r\n"
+        //     "<html>\r\n"
+        //     "<head><title>404 Not Found</title></head>\r\n"
+        //     "<body>\r\n"
+        //     "<h1>404 Not Found</h1>\r\n"
+        //     "<p>The requested URL was not found on this server.</p>\r\n"
+        //     "</body>\r\n"
+        //     "</html>";
         const char* response =
             "HTTP/1.1 404 Not Found\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 134\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-            "<html>\r\n"
-            "<head><title>404 Not Found</title></head>\r\n"
-            "<body>\r\n"
-            "<h1>404 Not Found</h1>\r\n"
-            "<p>The requested URL was not found on this server.</p>\r\n"
-            "</body>\r\n"
-            "</html>";
-        send(client_socket, response, strlen(response), 0);
-    } else if (path == "[AUTOINDEX]") {
-        // Generate and send a directory listing
-        // send_autoindex_response(client_socket, uri);
-    } else {
-        // Serve the file
-        // serve_file(client_socket, path);
-        const char* response =
-            "HTTP/1.1 yehh boiiii\r\n"
             "Content-Type: text/html\r\n"
             "Content-Length: 134\r\n"
             "Connection: close\r\n"
@@ -228,6 +221,12 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
             "</body>\r\n"
             "</html>";
         send(client_socket, response, strlen(response), 0);
+    } else if (path == "[AUTOINDEX]") {
+        // Generate and send a directory listing
+        // send_autoindex_response(client_socket, uri);
+    } else {
+        // Serve the file
+        // serve_file(client_socket, path);
     }
 
     close(client_socket); // Close the client socket after sending the response
@@ -238,6 +237,7 @@ void Webserv::start(void)
     std::vector<pollfd> poll_fds;
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server; // server_socket -> svconfig
+    std::vector<int> fds_to_remove;
 
 
     // Register all server sockets
@@ -309,15 +309,29 @@ void Webserv::start(void)
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
                     close(client_fd);
 
-                    // Remove from poll_fds
-                    client_fd_to_server.erase(client_fd);
-
-                    std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
+                    // For now: always close the client after handling one request
+                    fds_to_remove.push_back(client_fd);
+                    // std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
                 
             }
         }
     }
-    for(uint32_t i = 0; i < this->servers.size(); i ++)
-        close(this->servers[i].server_socket);
+    // cleanups
+    for (size_t j = 0; j < fds_to_remove.size(); ++j)
+    {
+        int fd_to_remove = fds_to_remove[j];
+
+        client_fd_to_server.erase(fd_to_remove);
+
+        for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+        {
+            if (it->fd == fd_to_remove) {
+                poll_fds.erase(it);
+                break;
+            }
+        }
+
+        std::cout << "[-] Closed connection and removed fd: " << fd_to_remove << std::endl;
+    }
 }
