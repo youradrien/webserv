@@ -180,13 +180,7 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)
     {
-        std::cerr << "Error receiving data from client!" << std::endl;
-        close(client_socket);
-        return;
-    }
-    if (bytes_received > 0)
-    {
-        std::cerr << "Error receiving data from client!" << std::endl;
+        std::cerr << "Error receiving data from client!  : " << client_socket << std::endl;
         close(client_socket);
         return;
     }
@@ -220,6 +214,20 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     } else {
         // Serve the file
         // serve_file(client_socket, path);
+        const char* response =
+            "HTTP/1.1 yehh boiiii\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 134\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "<html>\r\n"
+            "<head><title>wbserv</title></head>\r\n"
+            "<body>\r\n"
+            "<h1>c comment frro</h1>\r\n"
+            "<p>The requested URL was found on this server +</p>\r\n"
+            "</body>\r\n"
+            "</html>";
+        send(client_socket, response, strlen(response), 0);
     }
 
     close(client_socket); // Close the client socket after sending the response
@@ -247,14 +255,11 @@ void Webserv::start(void)
     // poll() loop on all servers
     while (true)
     {
-        std::cout << "clean accepting connection on port " << std::endl;
-std::cout << "[DEBUG] Polling " << poll_fds.size() << " fds: ";
         int ret = poll(poll_fds.data(), poll_fds.size(), -1);
         if (ret == -1) {
-            perror("poll");
+            perror("poll"); // cant poll ?
             break;
         }
-        std::cout << " nothing gets printed here"  << std::endl;
 
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
@@ -267,7 +272,13 @@ std::cout << "[DEBUG] Polling " << poll_fds.size() << " fds: ";
             // accept new [connection]       
             if (fd_to_server.count(pfd.fd))
             {
-                ServerConfig* serv = fd_to_server[pfd.fd];
+                ServerConfig* serv = NULL;
+                std::map<int, ServerConfig*>::iterator  it = fd_to_server.find(pfd.fd);
+                if (it != fd_to_server.end() && it->second != NULL)
+                    serv = it->second;
+                else
+                    std::cerr << "Error: no valid ServerConfig found for [fd]: " << pfd.fd << std::endl;
+            
 
                 int client_fd = accept(pfd.fd,
                     (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len
@@ -276,42 +287,34 @@ std::cout << "[DEBUG] Polling " << poll_fds.size() << " fds: ";
                 if (client_fd < 0) {
                     std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
                     continue;
-                }else{
-                    std::cout << "clean accepting connection on port "<< serv->port << std::endl;
-
                 }
 
                 // add new client socket to poll
                 pollfd client_pfd;
+
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
                 poll_fds.push_back(client_pfd);
                 client_fd_to_server[client_fd] = serv;
 
-                std::cout << "accepted new client on port " << serv->port << " (fd: " << client_fd << ")" << std::endl; 
             }
             // handle [connection]
             else
             {
-                // Client socket: Handle client
-                // ServerConfig* serv = client_fd_to_server[pfd.fd];
-                // this->handle_client(pfd.fd, *serv);
-                // ServerConfig* serv = client_fd_to_server[pfd.fd];
-                // int client_fd = pfd.fd;
-                //this->handle_client(serv.client_socket, serv);
-                /*
-                if (!keep_alive) {
+                // client socket: Handle client
+                ServerConfig* serv = client_fd_to_server[pfd.fd];
+                this->handle_client(serv->client_socket, *serv);
+                
+                if (true) {
+                    int client_fd = pfd.fd;  // Add this at the start of the else branch
                     close(client_fd);
-                    client_fd_to_server.erase(client_fd);
 
                     // Remove from poll_fds
-                    poll_fds.erase(std::remove_if(poll_fds.begin(), poll_fds.end(),
-                        [client_fd](const pollfd& p) { return p.fd == client_fd; }),
-                        poll_fds.end());
+                    client_fd_to_server.erase(client_fd);
 
-                    std::cout << "Closed connection (fd: " << client_fd << ")" << std::endl;
+                    std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
-                */
+                
             }
         }
     }

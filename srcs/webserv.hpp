@@ -18,6 +18,7 @@
 #include <arpa/inet.h>
 #include <filesystem>
 #include <sys/stat.h>
+#include <algorithm>
 
 #define PORT 8080
 #define BACKLOG 10
