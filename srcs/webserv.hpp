@@ -2,6 +2,8 @@
 
 # define WEBSERV_HPP
 
+#include <dirent.h>
+#include <sys/types.h>
 #include <iostream>
 #include <fstream>
 #include <cstring>

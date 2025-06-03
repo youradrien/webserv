@@ -122,7 +122,7 @@ void Request::Get()
 
             // no index file found, check autoindex
             if (this->_loc.autoindex)
-            	file_path = "[AUTOINDEX]"; // special marker handled elsewhere
+            	file_path = "[WRONGPATH]"; // special marker handled elsewhere
             else
             	file_path = "404"; // no autoindex and no index file => 404 scenario
         }
@@ -133,8 +133,9 @@ void Request::Get()
             file_path = full_path;
         }
     }
-	else
-		file_path = "[WRONGPATH]";
+	else{ // 403 WHEN DIRECTORY DOESNT EXIST
+		file_path = "[WRONGPATH]"; // special marker handled elsewhere
+	}
 
 	std::cout << file_path << std::endl;
 	// 404
@@ -161,9 +162,8 @@ void Request::Get()
     //  autoindex
     else if (file_path == "[WRONGPATH]" )
     {
-        // generate autoindex HTML or handle accordingly
-        // --> todo return generateAutoindexHtml();
-		        // actually hadnl 404 error
+        // autoindex HTML or handled accordingly
+		// todo list all files in that directory 
 		std::ostringstream oss;
 		oss << "HTTP/1.1 404 Not Found\r\n"
 			<< "Content-Type: text/html\r\n"
@@ -173,31 +173,40 @@ void Request::Get()
 			<< "<head><title>WEBSERVER || AUTOINDEX</title></head>\r\n"
 			<< "<body>\r\n"
 			<< "<h1>Bonjour mais malheureusement.</h1>\r\n"
-			<< "<h1>Non.</h1>\r\n"
-			<< "<h2>PATH couldn't be found so I render you a default page bro</h2>\r\n"
-			<< "<h2>the path was " << full_path << "</h2>\r\n"
+			<< "<h1>Non. you got autoindexed</h1>\r\n"
+			<< "<h4> this file couldnt be found in PATH so I render you a default page bro</h4>\r\n"
+			<< "<h3>FILE: " << this->_loc.index << "</h2>\r\n"
+			<< "<h3>FULL_PATH: " << full_path << "</h2>\r\n"
 			<< "</body>\r\n"
 			<< "</html>";
-
+		DIR* dir = opendir(this->_loc.root.c_str());
+		if (!dir) {
+			oss << "<h5> --> seems that path doesnt even exist on your server???: " << this->_loc.root << "</h5>\r\n";
+		}else{
+			struct dirent* entry;
+			while ((entry = readdir(dir)) != NULL)
+			{
+				std::string name = entry->d_name;
+				// Skip . and ..
+				if (name == "." || name == "..") continue;
+				// html << "<li><a href=\"" << request_uri;
+				// if (request_uri[request_uri.size() - 1] != '/') {
+				//     html << "/";
+				// }
+				oss << name << "\">" << name << "</a></li>\n";
+			}
+			closedir(dir);
+		}
 		std::string response = oss.str();
 		this->_ReqContent = (response);
-    }else if (file_path == "[AUTOINDEX]")
-	{
-		const std::string response =
-			"HTTP/1.1 404 Not Found\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 134\r\n"
-			"Connection: close\r\n"
-			"\r\n"
-			"<html>\r\n"
-			"<head><title>WEBSERV - AUTOINDEX</title></head>\r\n"
-			"<body>\r\n"
-			"<h2>cheh</h2>\r\n"
-			"</body>\r\n"
-			"</html>";
-		this->_ReqContent = (response);
-	}
+    }
 	// default file (like index.html)
+	else if (file_path == "[REDIRECTION]")
+	{
+		// todo
+		// handle redirection
+		
+	}
 	else
 	{
 		std::cout << "3" << std::endl;
