@@ -1,4 +1,5 @@
 #include "webserv.hpp"
+#include "request.hpp"
 
 /*
     BRIEF : 
@@ -130,48 +131,7 @@ void Webserv::init(void)
         std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host << ":" << serv_.port  << "\033[0m "<< std::endl;
     }
 }
-static std::string resolve_path(const ServerConfig& server, const std::string& uri)
-{
-    // find matching location path
-    const LocationConfig* loc = NULL;
-    for (unsigned long   i = 0; i < server.locations.size(); i++)
-    {    
-        const LocationConfig l = server.locations[i];
-        if (uri.find(l.path) == 0) {
-            loc = &l;
-            break;
-        }
-    }
-    if (!loc) return ""; // no mtching location
 
-    // URI -> full path
-    std::string 
-        full_path = loc->root + (uri.substr(loc->path.length()));
-
-    struct stat st;
-    if (stat(full_path.c_str(), &st) == 0)
-    {
-        if (S_ISDIR(st.st_mode))
-        {
-            // if directory, check index files
-            for(unsigned long i = 0; i < loc->index_files.size(); i ++)
-            {
-                const std::string& index = loc->index_files[i];
-                std::string index_path = full_path + "/" + index;
-                if (access(index_path.c_str(), R_OK) == 0)
-                    return index_path; // Found valid index file
-            }
-
-            // if autoindex enabled, return directory marker or empty
-            if (loc->autoindex)
-                return "[AUTOINDEX]"; // special handling elsewhere
-            else
-                return ""; // no autoindex => 404
-        }else
-            return full_path; // regular file
-    }
-    return ""; // file doesn't exist
-}
 
 // handle a client request (send a basic HTTP response)
 void Webserv::handle_client(int client_socket, const ServerConfig &serv)
@@ -180,56 +140,18 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)
     {
-        std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
+        // std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
         close(client_socket);
         return;
     }
-    buffer[bytes_received] = '\0'; // null-terminate received data
+    buffer[bytes_received] = '\0'; // null-terminate data
+
     // log  received HTTP request
-    std::cout << "\033[35m--- Received request <----\n" << buffer << "\033[0m"<< std::endl;
- 
-    //std::string uri = "/"; //assumee parsed this from HTTP request
-    std::string path; //= resolve_path(serv, uri);
-
-    if (path.empty()) 
-    {
-        // Construct a basic HTTP 404 response
-        // const char* response =
-        //     "HTTP/1.1 404 Not Found\r\n"
-        //     "Content-Type: text/html\r\n"
-        //     "Content-Length: 134\r\n"
-        //     "Connection: close\r\n"
-        //     "\r\n"
-        //     "<html>\r\n"
-        //     "<head><title>404 Not Found</title></head>\r\n"
-        //     "<body>\r\n"
-        //     "<h1>404 Not Found</h1>\r\n"
-        //     "<p>The requested URL was not found on this server.</p>\r\n"
-        //     "</body>\r\n"
-        //     "</html>";
-        const char* response =
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 134\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-            "<html>\r\n"
-            "<head><title>wbserv</title></head>\r\n"
-            "<body>\r\n"
-            "<h1>c comment frro</h1>\r\n"
-            "<p>The requested URL was found on this server +</p>\r\n"
-            "</body>\r\n"
-            "</html>";
-        send(client_socket, response, strlen(response), 0);
-    } else if (path == "[AUTOINDEX]") {
-        // Generate and send a directory listing
-        // send_autoindex_response(client_socket, uri);
-    } else {
-        // Serve the file
-        // serve_file(client_socket, path);
-    }
-
-    close(client_socket); // Close the client socket after sending the response
+    std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
+    Request R = Request(buffer, serv);
+    std::string response_ = R._get_ReqContent();
+    send(client_socket, response_.c_str(), (response_.size()), 0);
+    close(client_socket); // Close client socket after sending the response
 }
 
 void Webserv::start(void)
