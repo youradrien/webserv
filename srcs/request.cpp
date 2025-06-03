@@ -46,14 +46,17 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			return ;
 		}
     }
-
+	this->execute(); // <--- then execute it
 }
 // ________________EXECUTE METHOD____________________
 void Request::execute()
 {
 	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
 	if(!this->authorized)
-		std::cout<<"method "<<this->r_method<< ": NOT AUTHORIZED>"<<std::endl;
+	{
+		this->Get();
+
+	}
 	else if (this->r_method == "GET")
 		this->Get();
 	else if (this->r_method == "POST")
@@ -90,20 +93,24 @@ void Request::Get()
 {
     std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
 
-    std::string full_path = this->_loc.root + this->_loc.index;
+    std::string full_path = this->_loc.root + "/" + this->_loc.index;
     std::string file_path;
 
+	
     struct stat st;
     if (stat(full_path.c_str(), &st) == 0)
     {
+		std::cout << "cqcq" << std::endl;
         if (S_ISDIR(st.st_mode))
         {
+			std::cout << "45498748" << std::endl;
+			std::cout << "A" << std::endl;
             // check all  index files
             for (unsigned long i = 0; i < this->_loc.index_files.size(); i++)
             {
                 std::string index_path = full_path;
-            	if (!full_path.empty() && full_path[full_path.size() - 1] != '/')
-                	index_path += "/";
+            	//if (!full_path.empty() && full_path[full_path.size() - 1] != '/')
+                index_path += "/";
                 index_path += this->_loc.index_files[i];
 
                 // Check if index file exists and is readable
@@ -121,10 +128,15 @@ void Request::Get()
         }
         else
         {
+			std::cout << "" << std::endl;
             // Regular file
             file_path = full_path;
         }
     }
+	else
+		file_path = "[WRONGPATH]";
+
+	std::cout << file_path << std::endl;
 	// 404
 	if (file_path.empty() || file_path == "404")
     {
@@ -139,6 +151,7 @@ void Request::Get()
 			"<head><title>WEBSERV - 404</title></head>\r\n"
 			"<body>\r\n"
 			"<h1>ERROR 404</h1>\r\n"
+			"<h2>wbserv</h2>\r\n"
 			"<h2>cheh</h2>\r\n"
 			"<p>The requested URL was found on this server </p>\r\n"
 			"</body>\r\n"
@@ -146,11 +159,30 @@ void Request::Get()
 		this->_ReqContent = (response);
     }
     //  autoindex
-    else if (file_path == "[AUTOINDEX]")
+    else if (file_path == "[WRONGPATH]" )
     {
         // generate autoindex HTML or handle accordingly
         // --> todo return generateAutoindexHtml();
 		        // actually hadnl 404 error
+		std::ostringstream oss;
+		oss << "HTTP/1.1 404 Not Found\r\n"
+			<< "Content-Type: text/html\r\n"
+			<< "Connection: close\r\n"
+			<< "\r\n"
+			<< "<html>\r\n"
+			<< "<head><title>WEBSERVER || AUTOINDEX</title></head>\r\n"
+			<< "<body>\r\n"
+			<< "<h1>Bonjour mais malheureusement.</h1>\r\n"
+			<< "<h1>Non.</h1>\r\n"
+			<< "<h2>PATH couldn't be found so I render you a default page bro</h2>\r\n"
+			<< "<h2>the path was " << full_path << "</h2>\r\n"
+			<< "</body>\r\n"
+			<< "</html>";
+
+		std::string response = oss.str();
+		this->_ReqContent = (response);
+    }else if (file_path == "[AUTOINDEX]")
+	{
 		const std::string response =
 			"HTTP/1.1 404 Not Found\r\n"
 			"Content-Type: text/html\r\n"
@@ -163,11 +195,12 @@ void Request::Get()
 			"<h2>cheh</h2>\r\n"
 			"</body>\r\n"
 			"</html>";
-			this->_ReqContent = (response);
-    }
+		this->_ReqContent = (response);
+	}
 	// default file (like index.html)
 	else
 	{
+		std::cout << "3" << std::endl;
 		const std::string& 
 			body = readFile(file_path),
 			contentType = "text/html";
