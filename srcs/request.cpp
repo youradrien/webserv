@@ -3,6 +3,17 @@
 Request::~Request()
 { }
 
+static std::string readFile(const std::string& file_path)
+{
+    std::ifstream file(file_path.c_str());
+    if (!file.is_open())
+        return ""; // cant open file
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();  // Read entire file contents into buffer
+    return buffer.str();     // Return as a std::string
+}
+
 Request::Request(char *raw)
 {
 	this->r_full_request = raw;
@@ -14,7 +25,7 @@ Request::Request(char *raw, const ServerConfig &servr)
 {
 	this->r_full_request = raw;
 	std::istringstream iss(raw);
-
+	
 	// std::cout << this->r_full_request << std::endl;
 	iss>> this->r_method>> this->r_location >> this->r_version;
 	check_allowed_methods(servr);
@@ -24,6 +35,7 @@ Request::Request(char *raw, const ServerConfig &servr)
 
 void Request::check_allowed_methods(const ServerConfig &server)
 {
+	//std::cout << "server" << std::endl;
 	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
     for(;it_loc != server.locations.end();it_loc++)
     {
@@ -35,33 +47,73 @@ void Request::check_allowed_methods(const ServerConfig &server)
 			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
 			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
 			{
+				//std::cout << "qq chose" << std::endl;
 				//std::cout << *it_meth << std::endl;
 			    if(this->r_method == *it_meth)
 			    {
 			        this->authorized = true;
-                    this->execute(); // <--- then execute it
+                    this->execute(""); // <--- then execute it
 					return ;
 			    }
 			}
+			// 405
+			this->execute("405"); // <--- then execute it
 			return ;
 		}
     }
-	this->execute(); // <--- then execute it
+	// 404 
+	this->execute("404"); // <--- then execute it
 }
 // ________________EXECUTE METHOD____________________
-void Request::execute()
+void Request::execute(std::string s = "null")
 {
 	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
-	if(!this->authorized)
+	if(s == "405") // 405 unallowed method
 	{
-		this->Get();
+		const std::string& 
+				body = readFile("./www/errors/405.html"),
+				contentType = "text/html";
 
+		std::string bodi = body;
+		// Append extra info to body before calculating Content-Length
+		bodi += "<h2>" + this->_loc.root + " only handles:</h2>";
+		for (size_t i = 0; i < this->_loc.allowed_methods.size(); ++i)
+			bodi += "<h2> - " + this->_loc.allowed_methods[i] + " Method</h2>";
+		std::stringstream response;
+		response << "HTTP/1.1 405 Not Allowed\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << bodi.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << bodi;
+		response << "<p>"<<this->_loc.index + " only handles: </p>";
+		for(int i = 0; i < this->_loc.allowed_methods.size(); i++)
+			response << "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
+
+		this->_ReqContent = ( response.str());
+	}else if (s == "404") // 404 not found
+	{
+		// render custom 404 page
+		const std::string& 
+				body = readFile("./www/errors/404.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 404 Not Found\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}else
+	{
+		if(!this->authorized)
+			return ;
+		else if (this->r_method == "GET")
+			this->Get();
+		else if (this->r_method == "POST")
+			this->Post();
 	}
-	else if (this->r_method == "GET")
-		this->Get();
-	else if (this->r_method == "POST")
-		this->Post();
-
 }
 
 
@@ -70,7 +122,6 @@ void Request::execute()
 void Request::Post()
 {
 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
-	// this->authorized =false;
 }
 // ______________________________________________
 
@@ -79,128 +130,102 @@ void Request::Post()
 
 
 // ______________________GET METHOD____________________________
-static std::string readFile(const std::string& file_path)
-{
-    std::ifstream file(file_path.c_str());
-    if (!file.is_open())
-        return ""; // cant open file
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();  // Read entire file contents into buffer
-    return buffer.str();     // Return as a std::string
-}
 void Request::Get()
 {
-    std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
+   std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
 
-    std::string full_path = this->_loc.root + "/" + this->_loc.index;
+    std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
 
-	
     struct stat st;
-    if (stat(full_path.c_str(), &st) == 0)
+    // std::cout << full_path << std::endl;
+
+    if (stat(full_path.c_str(), &st) == 0) // 🛠️ REQUIRED!
     {
-		std::cout << "cqcq" << std::endl;
-        if (S_ISDIR(st.st_mode))
+        if (S_ISDIR(st.st_mode) && !this->_loc.index.empty())
         {
-			std::cout << "45498748" << std::endl;
-			std::cout << "A" << std::endl;
-            // check all  index files
-            for (unsigned long i = 0; i < this->_loc.index_files.size(); i++)
-            {
-                std::string index_path = full_path;
-            	//if (!full_path.empty() && full_path[full_path.size() - 1] != '/')
-                index_path += "/";
-                index_path += this->_loc.index_files[i];
-
-                // Check if index file exists and is readable
-                if (access(index_path.c_str(), R_OK) == 0)
-                {
-                    file_path = index_path; // Found valid index file
-                }
-            }
-
-            // no index file found, check autoindex
-            if (this->_loc.autoindex)
-            	file_path = "[WRONGPATH]"; // special marker handled elsewhere
-            else
-            	file_path = "404"; // no autoindex and no index file => 404 scenario
+            std::cout << "directory found" << std::endl;
+            file_path = full_path + "/" + this->_loc.index;
         }
         else
         {
-			std::cout << "" << std::endl;
-            // Regular file
-            file_path = full_path;
+            std::cout << "invalid" << std::endl;
+            if (this->_loc.autoindex)
+                file_path = "[AUTOINDEX]";
+            else
+                file_path = "[403]";
         }
     }
-	else{ // 403 WHEN DIRECTORY DOESNT EXIST
-		file_path = "[WRONGPATH]"; // special marker handled elsewhere
-	}
+    else
+    {
+        std::cerr << "stat() failed: path does not exist or access denied" << std::endl;
+        file_path = "[404]";
+    }
+
 
 	std::cout << file_path << std::endl;
-	// 404
-	if (file_path.empty() || file_path == "404")
-    {
-        // actually hadnl 404 error
-		const std::string response =
-			"HTTP/1.1 404 Not Found\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 134\r\n"
-			"Connection: close\r\n"
-			"\r\n"
-			"<html>\r\n"
-			"<head><title>WEBSERV - 404</title></head>\r\n"
-			"<body>\r\n"
-			"<h1>ERROR 404</h1>\r\n"
-			"<h2>wbserv</h2>\r\n"
-			"<h2>cheh</h2>\r\n"
-			"<p>The requested URL was found on this server </p>\r\n"
-			"</body>\r\n"
-			"</html>";
-		this->_ReqContent = (response);
-    }
     //  autoindex
-    else if (file_path == "[WRONGPATH]" )
+    if (file_path == "[AUTOINDEX]" )
     {
-        // autoindex HTML or handled accordingly
-		// todo list all files in that directory 
-		std::ostringstream oss;
-		oss << "HTTP/1.1 404 Not Found\r\n"
-			<< "Content-Type: text/html\r\n"
-			<< "Connection: close\r\n"
-			<< "\r\n"
-			<< "<html>\r\n"
-			<< "<head><title>WEBSERVER || AUTOINDEX</title></head>\r\n"
-			<< "<body>\r\n"
-			<< "<h1>Bonjour mais malheureusement.</h1>\r\n"
-			<< "<h1>Non. you got autoindexed</h1>\r\n"
-			<< "<h4> this file couldnt be found in PATH so I render you a default page bro</h4>\r\n"
-			<< "<h3>FILE: " << this->_loc.index << "</h2>\r\n"
-			<< "<h3>FULL_PATH: " << full_path << "</h2>\r\n"
-			<< "</body>\r\n"
-			<< "</html>";
-		DIR* dir = opendir(this->_loc.root.c_str());
+		// Generate directory listing
+		std::stringstream listing;
+		DIR* dir = opendir(full_path.c_str());
 		if (!dir) {
-			oss << "<h5> --> seems that path doesnt even exist on your server???: " << this->_loc.root << "</h5>\r\n";
-		}else{
+			listing << "<li><em>Directory not found: " << full_path << "</em></li>";
+		} else {
 			struct dirent* entry;
-			while ((entry = readdir(dir)) != NULL)
-			{
+			while ((entry = readdir(dir)) != NULL) {
 				std::string name = entry->d_name;
-				// Skip . and ..
 				if (name == "." || name == "..") continue;
-				// html << "<li><a href=\"" << request_uri;
-				// if (request_uri[request_uri.size() - 1] != '/') {
-				//     html << "/";
-				// }
-				oss << name << "\">" << name << "</a></li>\n";
+				listing << "<li><a href=\"" << name << "\">" << name << "</a></li>\n";
 			}
 			closedir(dir);
 		}
-		std::string response = oss.str();
-		this->_ReqContent = (response);
-    }
-	// default file (like index.html)
+
+		std::string body = readFile("./www/errors/autoindex.html");
+		size_t pos = body.find("<!--CONTENT-->");
+		if (pos != std::string::npos) {
+			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
+		}
+		std::stringstream response;
+		response << "HTTP/1.1 403 Forbidden\r\n";
+		response << "Content-Type: text/html\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n";
+		response << body;
+		this->_ReqContent = response.str();
+	}
+	// 404 no
+	else if (file_path == "[404]")
+	{
+		const std::string& 
+				body = readFile("./www/errors/404.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 404 Not Found\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}
+	// 403 forbidden
+	else if (file_path == "[403]")
+	{
+		const std::string& 
+				body = readFile("./www/errors/403.html"),
+				contentType = "text/html";
+		std::stringstream response;
+		response << "HTTP/1.1 403 Forbidden\r\n";
+		response << "Content-Type: " << contentType << "\r\n";
+		response << "Content-Length: " << body.size() << "\r\n";
+		response << "Connection: close\r\n";
+		response << "\r\n"; // End of headers
+		response << body;
+		this->_ReqContent = ( response.str());
+	}
 	else if (file_path == "[REDIRECTION]")
 	{
 		// todo
@@ -209,7 +234,6 @@ void Request::Get()
 	}
 	else
 	{
-		std::cout << "3" << std::endl;
 		const std::string& 
 			body = readFile(file_path),
 			contentType = "text/html";

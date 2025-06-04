@@ -133,7 +133,7 @@ bool Webserv::parseConfigFile(const std::string& filename)
                         serv_loc.root = value;
                     else if (key == "autoindex") 
                         serv_loc.autoindex = (value == "on");
-                    else if (key == "methods"){
+                    else if (key == "methods" || key == "allowed_methods"){
                         // serv_loc.allowed_methods.push_back(line.substr(0, line.size() - 1));
                         line = line.substr(0, line.size() - 1);  // removing last char (e.g., '\n')
                         std::istringstream iss(line);
@@ -144,8 +144,10 @@ bool Webserv::parseConfigFile(const std::string& filename)
                         }
 
                     }
-                    else if (key == "index") 
+                    else if (key == "index"){
                         serv_loc.index = (value);
+                    
+                    }
                     else if (key == "cgi_extension") 
                         serv_loc.cgi_extension = (value);
                     else if (key == "cgi_path") 

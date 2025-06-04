@@ -20,6 +20,8 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include "webserv.hpp"
+#include <dirent.h>
+#include <string>
 
 class Request
 {
@@ -28,7 +30,7 @@ class Request
       Request(char* buffer, const ServerConfig &serv);
       ~Request();
       void check_allowed_methods(const ServerConfig &serv);
-      void execute();
+      void execute(std::string s);
       std::string _get_ReqContent();
 
     private:

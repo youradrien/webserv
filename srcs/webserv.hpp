@@ -58,8 +58,7 @@ struct LocationConfig
         cgi_path,
         index;
     std::vector<std::string> 
-        allowed_methods,
-        index_files;
+        allowed_methods;
     std::string redirect_url;
     bool autoindex;
 };
