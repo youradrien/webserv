@@ -22,7 +22,7 @@ chmod -R 755 ./
 
 # default python script for CGI
 cat << 'EOF' > ./cgi-bin/hello.py
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import os
 
 print("Content-Type: text/html\n")
@@ -76,6 +76,7 @@ cat << 'EOF' > ./www/index.html
             margin-top: 2rem;
         }
         .links a {
+  # just for a 403 req
             display: inline-block;
             margin: 0.5rem;
             padding: 0.75rem 1.5rem;

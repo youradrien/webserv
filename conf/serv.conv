@@ -1,7 +1,58 @@
 server {
     host 127.0.0.1;
-    port 8080;
+    port 8088;
     server_name localhost;
+
+    error_page 404 ./www/errors/404.html;
+    client_max_body_size 10M;
+
+  # Main route
+  location / {
+    root ./www;
+    index index.html;
+    autoindex off;
+    allowed_methods GET;
+  }
+
+  # File upload support
+  location /upload {
+    root ./www;
+    upload_dir ./uploads;
+    allowed_methods POST;
+  }
+
+  # CGI route (Python example)
+  location /cgi {
+    root ./cgi-bin;
+    cgi_extension .py;
+    allowed_methods GET POST;
+  }
+
+  # redirect example that should be a 404
+  location /old-page {
+    redirect /;
+  }
+
+  # Directory listing example
+  location /files {
+    root ./www;
+    autoindex on;
+    allowed_methods GET;
+  }
+
+
+  # just for a 403 req
+  location /null {
+    root ./www;
+    autoindex off;
+    allowed_methods GET;
+  }
+}
+
+server {
+    host 127.0.0.1;
+    port 8088;
+    server_name toto;
 
     error_page 404 ./www/errors/404.html;
     client_max_body_size 10M;

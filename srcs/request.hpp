@@ -39,11 +39,7 @@ class Request
         bool authorized;
         void Post();
         void Get();
-        void Put();
-        void Patch();
         void Delete();
-        void Head();
-        void Options();
         std::string _ReqContent;
 
 };
