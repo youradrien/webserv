@@ -123,6 +123,7 @@ void Webserv::start(void)
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server; // server_socket -> svconfig
     std::vector<int> fds_to_remove;
+    const size_t MAX_CLIENTS = 3000;
 
 
     // Register all server sockets
@@ -174,12 +175,29 @@ void Webserv::start(void)
                     continue;
                 }
 
+                // timeout on socket (7 sec)
+                struct timeval timeout;
+                timeout.tv_sec = 7;
+                timeout.tv_usec = 0;
+                setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+
+                // force the socket non-blocking
+                int flags = fcntl(client_fd, F_GETFL, 0);
+                if (flags != -1)
+                    fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+
                 // add new client socket to poll
                 pollfd client_pfd;
 
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
                 poll_fds.push_back(client_pfd);
+                if (poll_fds.size() >= MAX_CLIENTS)
+                {
+                    std::cerr << "max clients reached rejecting connections from now" << std::endl;
+                    close(client_fd);
+                    continue;
+                }
                 client_fd_to_server[client_fd] = serv;
 
             }
@@ -188,8 +206,9 @@ void Webserv::start(void)
             {
                 // client socket: Handle client
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
-                this->handle_client(serv->client_socket, *serv);
-                
+                // this->handle_client(serv->client_socket, *serv);
+                this->handle_client(pfd.fd, *serv); // client socket is pfd.fd
+
                 if (true) 
                 {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
@@ -200,22 +219,24 @@ void Webserv::start(void)
                 
             }
         }
-    }
-    // cleanups
-    for (size_t j = 0; j < fds_to_remove.size(); ++j)
-    {
-        int fd_to_remove = fds_to_remove[j];
 
-        client_fd_to_server.erase(fd_to_remove);
-
-        for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+        // cleanups
+        for (size_t j = 0; j < fds_to_remove.size(); ++j)
         {
-            if (it->fd == fd_to_remove) {
-                poll_fds.erase(it);
-                break;
-            }
-        }
+            int fd_to_remove = fds_to_remove[j];
 
-        std::cout << "[-] Closed connection and removed fd: " << fd_to_remove << std::endl;
+            client_fd_to_server.erase(fd_to_remove);
+
+            for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+            {
+                if (it->fd == fd_to_remove) {
+                    poll_fds.erase(it);
+                    break;
+                }
+            }
+
+            std::cout << "[-] Closed connection and removed fd: " << fd_to_remove << std::endl;
+        }
     }
+
 }
