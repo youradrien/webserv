@@ -1,3 +1,4 @@
+# server0 - home
 server {
     host 127.0.0.1;
     port 8088;
@@ -18,58 +19,9 @@ server {
   location /upload {
     root ./www;
     upload_dir ./uploads;
-    allowed_methods POST;
-  }
-
-  # CGI route (Python example)
-  location /cgi {
-    root ./cgi-bin;
-    cgi_extension .py;
+    index postz.html;
+    autoindex off;
     allowed_methods GET POST;
-  }
-
-  # redirect example that should be a 404
-  location /old-page {
-    redirect /;
-  }
-
-  # Directory listing example
-  location /files {
-    root ./www;
-    autoindex on;
-    allowed_methods GET;
-  }
-
-
-  # just for a 403 req
-  location /null {
-    root ./www;
-    autoindex off;
-    allowed_methods GET;
-  }
-}
-
-server {
-    host 127.0.0.1;
-    port 8088;
-    server_name toto;
-
-    error_page 404 ./www/errors/404.html;
-    client_max_body_size 10M;
-
-  # Main route
-  location / {
-    root ./www;
-    index index.html;
-    autoindex off;
-    allowed_methods GET;
-  }
-
-  # File upload support
-  location /upload {
-    root ./www;
-    upload_dir ./uploads;
-    allowed_methods POST;
   }
 
   # CGI route (Python example)
@@ -101,7 +53,7 @@ server {
 }
 
 
-# server2 - simulate api call (renders a .json)
+# server1 - simulate api call (renders a .json)
 server {
     host 127.0.0.1;
     port 8082;
@@ -119,7 +71,7 @@ server {
     }
 }
 
-# server3 - same port diff server name (shouldnt work and get catched by the parser)
+# server2 - same port diff server name (should work and just push a server_name and get catched by the parser)
 server {
     host 127.0.0.1;
     port 8080;
@@ -142,7 +94,7 @@ server {
 }
 
 
-# sever5 - On a different port GET renders the same index.html
+# sever3 - On a different port GET renders the same index.html
 server {
     host 127.0.0.1;
     port 9091;
@@ -154,17 +106,17 @@ server {
 
     route /public {
         methods GET;
-        root ./public;
+        root ./www;
         autoindex on;
         index index.html;
     }
 }   
 
 
-# sever6 - On a different port GET renders a special -> special.html
+# sever4 - On a different port GET renders a special -> special.html
 server {
     host 127.0.0.1;
-    port 4242;
+    port 4343;
     server_name speciall;
 
     error_page 404 /errors/404.html;
@@ -174,7 +126,7 @@ server {
     route / {
         methods GET;
         root ./public;
-        autoindex on;
+        autoindex off;
         index special.html;
     }
 }   

@@ -87,7 +87,7 @@ void Request::execute(std::string s = "null")
 		response << "\r\n"; // End of headers
 		response << bodi;
 		response << "<p>"<<this->_loc.index + " only handles: </p>";
-		for(int i = 0; i < this->_loc.allowed_methods.size(); i++)
+		for(unsigned long i = 0; i < this->_loc.allowed_methods.size(); i++)
 			response << "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
 
 		this->_ReqContent = ( response.str());
@@ -124,6 +124,153 @@ void Request::Post()
 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
 }
 // ______________________________________________
+
+
+// static bool writeToFile( std::string& filename, const std::string& content)
+// {
+//     std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
+
+//     if (!outFile)
+// 	{
+//         std::cerr << "Error: Could not open or create file: " << filename << std::endl;
+//         return false;
+//     }
+// 	// std::cout <<"\033[92mcontent: |"<<content<<"|\033[0m\n";
+//     outFile << content<<"\n";
+//     return true;
+// }
+
+// static void Request::writeData()
+// {
+// 	bool parsestate = false;
+// 	if (this->r_boundary =="void")
+// 	{
+// 		return ;
+// 	}
+// 	else
+// 	{
+// 		std::istringstream s(this->r_body);
+// 		std::string buf;
+// 		while(getline(s,buf))
+// 		{
+// 			if (buf==this->r_boundary + "--\r")
+// 			{
+// 				std::cout<<"END OF DATAREAD\n";
+// 				break;
+// 			}
+// 			else if (buf==this->r_boundary+'\r')
+// 			{
+// 				parsestate = !parsestate;
+// 			}
+// 			else if (parsestate)
+// 			{
+// 				std::string::size_type pos, epos;
+
+// 				//GET NAMETYPE
+// 				pos = buf.find("name=\"");
+// 				if (pos != std::string::npos)
+// 				{
+// 					pos+=6;
+// 					epos = buf.find("\"",pos);
+// 					if (epos != std::string::npos)
+// 					{
+// 						this->file.name = "var/www/uploads/";
+// 						this->file.name += buf.substr(pos,epos-pos);
+// 					}
+// 				}
+// 				//GETFILENAME
+// 				pos = buf.find("filename=\"");
+// 				if (pos != std::string::npos)
+// 				{
+// 					pos+=10;
+// 					epos = buf.find("\"",pos);
+// 					if (epos != std::string::npos)
+// 					{
+// 						this->file.fname = "var/www/uploads/";
+// 						this->file.fname += buf.substr(pos,epos-pos);
+// 					}
+// 				}
+
+// 				//GET CONTENTYPE LINE
+// 				getline(s,buf);
+// 				pos = buf.find("Content-Type: ");
+// 				if (pos != std::string::npos)
+// 				{
+// 					this->file.type = buf.substr(pos+14);
+// 				}
+// 				parsestate = !parsestate;
+// 				//SKIP EMPTY LINE
+// 				getline(s,buf);
+// 				std::cout<<"fname: "<<this->file.fname<<"\n";
+// 				std::ofstream outFile(this->file.fname.c_str(),std::ios::trunc);
+// 				if (!outFile)
+// 				{
+// 					std::cerr << "Error: Could not open file: " << outFile << std::endl;
+// 					return ;
+// 				}
+// 			}
+// 			else
+// 			{
+// 				writeToFile(this->file.fname,buf);
+// 			}
+
+// 		}
+
+// 	}
+// }
+
+// // ________________POST METHOD____________________
+// void Request::Post()
+// {
+// 	std::cout<<"|thisSOCKET:"<<this->_socket <<std::endl;
+// 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
+
+// 	//EXTRACT BOUNDARY
+// 	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
+//     if (pos != std::string::npos)
+// 	{
+//         // Get the rest of the string starting from the match
+//         this->r_boundary = this->http_params.find("Content-Type")->second.substr(pos+9);
+// 		this->r_boundary.resize(this->r_boundary.size()-1);
+// 		this->r_boundary = "--" + this->r_boundary;
+//     }
+// 	else
+// 		this->r_boundary = "void";
+
+// 	//calculate data length
+// 	ssize_t  content_length=0;
+// 	if(this->http_params.find("Content-Length") != this->http_params.end())
+// 	{
+// 		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
+// 		std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
+// 	}
+
+// 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
+// 	char buffer[1024];
+// 	long bytes_received = 0;  // Make sure this is initialized
+// 	while (bytes_received < content_length)
+// 	{
+// 		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
+// 		if (ret == 0)
+// 			break;
+// 		if (ret < 0)
+// 		{
+// 			std::cerr << "\033[31m Error receiving data from client! Socket: " << this->_socket << "\033[0m" << std::endl;
+// 			close(this->_socket);
+// 			return;
+// 		}
+// 		// this->r_full_request.append(buffer, ret);
+// 		// std::cout<<buffer<<std::endl;
+// 		this->r_body.append(buffer, ret);
+// 		bytes_received += ret;
+// 	}
+// 	this->writeData();
+// 	// std::cout<<"\nHEADER HEADER SHIT START:\n" <<this->r_header<<"\nHAEADER SHIT END:\n";
+// 	// std::cout<<"\nBODY SHIT START:\n" <<this->r_body<<"\nfull SHIT END:\n";
+// 	// std::cout<<this->http_params.find("Content-Type")->second <<std::endl;
+
+// }
+// // ______________________________________________
 
 
 
@@ -188,7 +335,7 @@ void Request::Get()
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
 		}
 		std::stringstream response;
-		response << "HTTP/1.1 403 Forbidden\r\n";
+		response << "HTTP/1.1 200 Ok\r\n";
 		response << "Content-Type: text/html\r\n";
 		response << "Content-Length: " << body.size() << "\r\n";
 		response << "Connection: close\r\n";
@@ -248,7 +395,7 @@ void Request::Get()
 		response << body;
 		this->_ReqContent = ( response.str());
 	}
-	std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
+	// std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
 }
 
 std::string Request::_get_ReqContent()
