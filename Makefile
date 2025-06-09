@@ -7,8 +7,8 @@ FLAGS   = -Wall -Wextra -std=c++98
 
 # Default target
 all: $(EXEC)
-	@echo "Running /conf/.script.sh..."
-	@/conf/.script.sh
+	echo "Running ./conf/script.sh..."
+	./conf/script.sh
 
 # Link the object files to create the executable
 $(EXEC): $(OBJ)
@@ -24,7 +24,11 @@ clean:
 
 # Full clean including executable
 fclean: clean
-	rm -f $(	)
+	rm -f $(EXEC)
+	rm -rf ./www
+	rm -rf ./uploads
+	rm -rf ./cgi-bin
+	rm -rf ./srcs/build
 
 # Rebuild everything
 re: fclean all

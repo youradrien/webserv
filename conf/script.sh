@@ -9,19 +9,19 @@
 #└── server.conf      # Your configuration fil
 
 # at root
-rm -rf ../www
-rm -rf ../uploads
-rm -rf ../cgi-bin
+rm -rf ./www
+rm -rf ./uploads
+rm -rf ./cgi-bin
 
-mkdir -p ../www
-mkdir -p ../www/errors
-mkdir -p ../uploads
-mkdir -p ../cgi-bin
+mkdir -p ./www
+mkdir -p ./www/errors
+mkdir -p ./uploads
+mkdir -p ./cgi-bin
 
 chmod -R 755 ./
 
 # default python script for CGI
-cat << 'EOF' > ../cgi-bin/hello.py
+cat << 'EOF' > ./cgi-bin/hello.py
 #!/usr/bin/env python3
 import os
 
@@ -37,7 +37,7 @@ EOF
 
 
 # create index.html
-cat << 'EOF' > ../www/index.html
+cat << 'EOF' > ./www/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,7 +117,7 @@ cat << 'EOF' > ../www/index.html
 EOF
 
 # create 404.html
-cat << 'EOF' > ../www/errors/404.html
+cat << 'EOF' > ./www/errors/404.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -185,7 +185,7 @@ cat << 'EOF' > ../www/errors/404.html
 EOF
 
 # create 403.html non - autoindexer
-cat << 'EOF' > ../www/errors/403.html
+cat << 'EOF' > ./www/errors/403.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -266,7 +266,7 @@ EOF
 
 
 # create 405.html non - autoindexer
-cat << 'EOF' > ../www/errors/405.html
+cat << 'EOF' > ./www/errors/405.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -349,7 +349,7 @@ EOF
 
 # create 403.html autoindexer
 # create index.html
-cat << 'EOF' > ../www/errors/autoindex.html
+cat << 'EOF' > ./www/errors/autoindex.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -422,7 +422,7 @@ EOF
 
 
 # create index.html
-cat << 'EOF' > ../www/special.html
+cat << 'EOF' > ./www/special.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -511,7 +511,7 @@ cat << 'EOF' > ../www/special.html
 EOF
 
 # create index.json
-cat << 'EOF' > ../www/index.json
+cat << 'EOF' > ./www/index.json
 {
   {
     "alpha": "92",
