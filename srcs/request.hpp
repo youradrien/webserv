@@ -26,11 +26,8 @@
 class Request
 {
     public:
-      Request(char* buffer);
       Request(char* buffer, const ServerConfig &serv);
       ~Request();
-      void check_allowed_methods(const ServerConfig &serv);
-      void execute(std::string s);
       std::string _get_ReqContent();
 
     private:
@@ -40,6 +37,8 @@ class Request
         void Post();
         void Get();
         void Delete();
+        void check_allowed_methods(const ServerConfig &serv);
+        void execute(std::string s);
         std::string _ReqContent;
 
 };

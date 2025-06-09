@@ -1,42 +1,6 @@
 #include "webserv.hpp"
 #include "request.hpp"
 
-/*
-    BRIEF : 
-    ✅ Common Socket Syscalls (for a TCP server)
-
-    1️⃣ Create socket	socket()	Creates a new socket file descriptor (FD).
-    1. -int fd = socket(AF_INET, SOCK_STREAM, 0);
-       -creates a socket using IPv4 (AF_INET) and TCP (SOCK_STREAM).
-
-    2️⃣ Bind address	bind()	Assigns an address (IP + port) to socket.
-    2. -bind(fd, (struct sockaddr*)&addr, sizeof(addr));
-       -binds socket to an IP and port so  kernel knows where to listen.
-    
-    3️⃣ Listen for clients	listen()	Marks socket as passive (ready to accept connections).
-    3.  -listen(fd, backlog);
-        -enables socket to accept incoming connections (backlog = queue size).
-
-    4️⃣ Accept connection	accept()	Accepts an incoming connection, returns a new socket FD for that client.
-    4.  -int client_fd = accept(server_fd, NULL, NULL);.
-        -accepts client connection. returns new FD for communicating with that client.
-
-
-    5️⃣ recv() / read()	read data/bytes from client socket.
-    5. -recv(client_fd, buffer, sizeof(buffer), 0);
-        // or
-       -read(client_fd, buffer, sizeof(buffer));
-
-    6️⃣ send() / write()sends data back to client socket.
-    6. - send(client_fd, response, length, 0);
-        // or
-        write(client_fd, response, length);
-
-    7️⃣ close socket	close()	closes socket file descriptor.
-    7. - close(fd); 
-       - closes the socket (server or client).
-*/
-
 
 Webserv::Webserv(void)
 {
@@ -146,7 +110,6 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     }
     buffer[bytes_received] = '\0'; // null-terminate data
 
-    // log  received HTTP request
     std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
     Request R = Request(buffer, serv);
     std::string response_ = R._get_ReqContent();
@@ -227,13 +190,12 @@ void Webserv::start(void)
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 this->handle_client(serv->client_socket, *serv);
                 
-                if (true) {
+                if (true) 
+                {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
                     close(client_fd);
 
-                    // For now: always close the client after handling one request
                     fds_to_remove.push_back(client_fd);
-                    // std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
                 
             }
