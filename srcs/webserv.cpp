@@ -207,7 +207,7 @@ void Webserv::start(void)
                 );
 
                 if (client_fd < 0) {
-                    std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
+                    // std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
                     continue;
                 }
 

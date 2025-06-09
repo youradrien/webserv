@@ -171,6 +171,11 @@ cat << 'EOF' > ../www/errors/404.html
 <body>
     <div class="container">
         <h1>404</h1>
+        <h4>
+        the server cannot find the requested resource.
+        in the browser, this means the URL is not recognized. in an API this can also mean that the endpoint is valid but the resource itself does not exist
+        this response code is probably the most well known due to its frequent occurrence on the web.
+        </h4>
         <p>Oops! you went into cyberspace cuh 🌌</p>
         <a href="/">retour à la maison</a>
         <div class="emoji">🛸👾🚀</div>
@@ -250,7 +255,8 @@ cat << 'EOF' > ../www/errors/403.html
 <body>
     <div class="container">
         <h1>403</h1>
-        <p>Nice try... but you can't go there 🚫</p>
+        <h5>client does not have access rights to the content; that is, it is unauthorized, so the server is refusing to give the requested resource.</h5>
+        <p>nice try... but you can't go there 🚫</p>
         <a href="/">back to safety</a>
         <div class="emoji">🧙‍♂️🔒🛡️</div>
     </div>
@@ -265,7 +271,7 @@ cat << 'EOF' > ../www/errors/405.html
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>405 - Not allowed</title>
+    <title>405 - Method Not Allowed</title>
     <style>
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
@@ -329,9 +335,11 @@ cat << 'EOF' > ../www/errors/405.html
 </head>
 <body>
     <div class="container">
-        <h1>405 Not Allowed</h1>
-        <h2>Tried wrong method on this route ?</h2>
-        <a href="/">go back mf</a>
+        <h1>405 - Method Not Allowed</h1>
+        <h3>Tried wrong method on this route ?</h3>
+        <h5>the request method is known by the server but is not supported by the target resource.
+        for example, an API may not allow DELETE on a resource, or the TRACE method entirely.</h5>
+        <a href="/">go back </a>
         <div class="emoji">🔒🛡️</div>
     </div>
 </body>
@@ -500,3 +508,42 @@ cat << 'EOF' > ../www/special.html
   </script>
 </body>
 </html>
+EOF
+
+# create index.json
+cat << 'EOF' > ../www/index.json
+{
+  {
+    "alpha": "92",
+    "bravo": "sunset",
+    "charlie": "1098",
+    "delta": "ocean",
+    "echo": "42",
+    "foxtrot": "cactus",
+    "golf": "7831",
+    "hotel": "cloud",
+    "india": "556",
+    "juliet": "zebra",
+    "kilo": "3021",
+    "lima": "banana",
+    "mike": "88",
+    "november": "forest",
+    "oscar": "719",
+    "papa": "river",
+    "quebec": "1045",
+    "romeo": "mountain",
+    "sierra": "301",
+    "tango": "tiger",
+    "uniform": "876",
+    "victor": "maple",
+    "whiskey": "99",
+    "xray": "galaxy",
+    "yankee": "212",
+    "zulu": "echo",
+    "omega": "4545",
+    "theta": "pine",
+    "sigma": "60",
+    "lambda": "horizon"
+  }
+}
+EOF

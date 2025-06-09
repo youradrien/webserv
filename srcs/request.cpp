@@ -80,7 +80,7 @@ void Request::execute(std::string s = "null")
 		for (size_t i = 0; i < this->_loc.allowed_methods.size(); ++i)
 			bodi += "<h2> - " + this->_loc.allowed_methods[i] + " Method</h2>";
 		std::stringstream response;
-		response << "HTTP/1.1 405 Not Allowed\r\n";
+		response << "HTTP/1.1 405 Method Not Alloweds\r\n";
 		response << "Content-Type: " << contentType << "\r\n";
 		response << "Content-Length: " << bodi.size() << "\r\n";
 		response << "Connection: close\r\n";
