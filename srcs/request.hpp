@@ -23,22 +23,33 @@
 #include <dirent.h>
 #include <string>
 
+struct file_id
+{
+    std::string name, fname, type;
+};
+
 class Request
 {
     public:
-      Request(char* buffer, const ServerConfig &serv);
+      Request(char* buffer, const ServerConfig &serv, int socket);
       ~Request();
+      void check_allowed_methods(const ServerConfig &serv);
+      void execute(std::string s);
       std::string _get_ReqContent();
 
     private:
-        std::string r_method, r_location, r_version, r_full_request;
+		int _socket;
+        std::map<std::string,std::string> http_params;
+
+		std::string r_method, r_location, r_version, r_boundary, r_body, r_header;
         LocationConfig _loc;
+        file_id file;
         bool authorized;
         void Post();
         void Get();
         void Delete();
-        void check_allowed_methods(const ServerConfig &serv);
-        void execute(std::string s);
+        void writeData();
+        int checkbound(std::istringstream& s);
         std::string _ReqContent;
 
 };

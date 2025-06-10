@@ -21,7 +21,6 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <algorithm>
-#include <signal.h>
 #include <fcntl.h>
 
 #define PORT 8080
@@ -58,7 +57,8 @@ struct LocationConfig
         root,
         cgi_extension,
         cgi_path,
-        index;
+        index,
+        upload_store;
     std::vector<std::string> 
         allowed_methods;
     std::string redirect_url;

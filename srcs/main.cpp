@@ -25,7 +25,6 @@ int main(int argc, char **argv)
     }
     // // start the server
     try{
-        signal(SIGPIPE, SIG_IGN);
         w.start();  // Invalid input
     } catch (const std::invalid_argument& e)
     {

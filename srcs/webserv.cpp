@@ -1,6 +1,42 @@
 #include "webserv.hpp"
 #include "request.hpp"
 
+/*
+    BRIEF : 
+    ✅ Common Socket Syscalls (for a TCP server)
+
+    1️⃣ Create socket	socket()	Creates a new socket file descriptor (FD).
+    1. -int fd = socket(AF_INET, SOCK_STREAM, 0);
+       -creates a socket using IPv4 (AF_INET) and TCP (SOCK_STREAM).
+
+    2️⃣ Bind address	bind()	Assigns an address (IP + port) to socket.
+    2. -bind(fd, (struct sockaddr*)&addr, sizeof(addr));
+       -binds socket to an IP and port so  kernel knows where to listen.
+    
+    3️⃣ Listen for clients	listen()	Marks socket as passive (ready to accept connections).
+    3.  -listen(fd, backlog);
+        -enables socket to accept incoming connections (backlog = queue size).
+
+    4️⃣ Accept connection	accept()	Accepts an incoming connection, returns a new socket FD for that client.
+    4.  -int client_fd = accept(server_fd, NULL, NULL);.
+        -accepts client connection. returns new FD for communicating with that client.
+
+
+    5️⃣ recv() / read()	read data/bytes from client socket.
+    5. -recv(client_fd, buffer, sizeof(buffer), 0);
+        // or
+       -read(client_fd, buffer, sizeof(buffer));
+
+    6️⃣ send() / write()sends data back to client socket.
+    6. - send(client_fd, response, length, 0);
+        // or
+        write(client_fd, response, length);
+
+    7️⃣ close socket	close()	closes socket file descriptor.
+    7. - close(fd); 
+       - closes the socket (server or client).
+*/
+
 
 Webserv::Webserv(void)
 {
@@ -101,17 +137,19 @@ void Webserv::init(void)
 void Webserv::handle_client(int client_socket, const ServerConfig &serv)
 {
     char buffer[1024];
+    // std::cerr << " \033[31m Error " << client_socket<<buffer<<sizeof(buffer-1) << "\033[0m" << std::endl;
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)
     {
-        // std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
+        std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
         close(client_socket);
         return;
     }
     buffer[bytes_received] = '\0'; // null-terminate data
 
-    std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
-    Request R = Request(buffer, serv);
+    // log  received HTTP request
+    // std::cout << "\033[36m>>>>>>>>> Received a request! <----\n" << buffer << "\033[0m"<< std::endl;
+    Request R = Request(buffer, serv, client_socket);
     std::string response_ = R._get_ReqContent();
     send(client_socket, response_.c_str(), (response_.size()), 0);
     close(client_socket); // Close client socket after sending the response
@@ -123,8 +161,7 @@ void Webserv::start(void)
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server; // server_socket -> svconfig
     std::vector<int> fds_to_remove;
-    const size_t MAX_CLIENTS = 3000;
-
+    const size_t MAX_CLIENTS = 300000;
 
     // Register all server sockets
     for (size_t i = 0; i < this->servers.size(); ++i)
@@ -143,7 +180,7 @@ void Webserv::start(void)
     {
         int ret = poll(poll_fds.data(), poll_fds.size(), -1);
         if (ret == -1) {
-            perror("poll"); // cant poll ?
+            perror("pollertert"); // cant poll ?
             break;
         }
 
@@ -171,20 +208,19 @@ void Webserv::start(void)
                 );
 
                 if (client_fd < 0) {
-                    // std::cerr << "Error accepting connection on port "<< serv->port << ": " << strerror(errno) << std::endl;
                     continue;
                 }
 
-                // timeout on socket (7 sec)
-                struct timeval timeout;
-                timeout.tv_sec = 7;
-                timeout.tv_usec = 0;
-                setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+                // // timeout on socket (7 sec)
+                // struct timeval timeout;
+                // timeout.tv_sec = 7;
+                // timeout.tv_usec = 0;
+                // setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
 
-                // force the socket non-blocking
-                int flags = fcntl(client_fd, F_GETFL, 0);
-                if (flags != -1)
-                    fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+                // // force the socket non-blocking
+                // int flags = fcntl(client_fd, F_GETFL, 0);
+                // if (flags != -1)
+                //     fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 
                 // add new client socket to poll
                 pollfd client_pfd;
@@ -192,12 +228,12 @@ void Webserv::start(void)
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
                 poll_fds.push_back(client_pfd);
-                if (poll_fds.size() >= MAX_CLIENTS)
-                {
-                    std::cerr << "max clients reached rejecting connections from now" << std::endl;
-                    close(client_fd);
-                    continue;
-                }
+                // if (poll_fds.size() >= MAX_CLIENTS)
+                // {
+                //     // std::cerr << "max clients reached rejecting connections from now" << std::endl;
+                //     close(client_fd);
+                //     continue;
+                // }
                 client_fd_to_server[client_fd] = serv;
 
             }
@@ -206,37 +242,36 @@ void Webserv::start(void)
             {
                 // client socket: Handle client
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
-                // this->handle_client(serv->client_socket, *serv);
-                this->handle_client(pfd.fd, *serv); // client socket is pfd.fd
+                this->handle_client(serv->client_socket, *serv);
 
-                if (true) 
-                {
+                if (true) {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
                     close(client_fd);
 
                     fds_to_remove.push_back(client_fd);
+                    // std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
                 
             }
-        }
-
-        // cleanups
-        for (size_t j = 0; j < fds_to_remove.size(); ++j)
-        {
-            int fd_to_remove = fds_to_remove[j];
-
-            client_fd_to_server.erase(fd_to_remove);
-
-            for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+            if(i > 4)
             {
-                if (it->fd == fd_to_remove) {
-                    poll_fds.erase(it);
-                    break;
+                // cleanups
+                for (size_t j = 0; j < fds_to_remove.size(); ++j)
+                {
+                    int fd_to_remove = fds_to_remove[j];
+
+                    client_fd_to_server.erase(fd_to_remove);
+                    for (std::vector<struct pollfd>::iterator it = poll_fds.begin() + 4; it != poll_fds.end(); ++it)
+                    {
+                        if (it->fd == fd_to_remove) {
+                            poll_fds.erase(it);
+                            break;
+                        }
+                    }
                 }
             }
-
-            std::cout << "[-] Closed connection and removed fd: " << fd_to_remove << std::endl;
         }
+
     }
 
 }

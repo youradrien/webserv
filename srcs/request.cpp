@@ -12,14 +12,27 @@ static std::string readFile(const std::string& file_path)
     std::stringstream buffer;
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
-}
-
-Request::Request(char *raw, const ServerConfig &servr)
+} 
+Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socket)
 {
-	this->r_full_request = raw;
+	this->r_header = raw;
 	std::istringstream iss(raw);
-	
+	std::string buffer;
+
+	// std::cout << this->r_full_request << std::endl;
 	iss>> this->r_method>> this->r_location >> this->r_version;
+
+	while (getline(iss,buffer))
+	{
+		if(buffer.size()>1)
+    	{
+			std::string key, value;
+			std::istringstream iss2(buffer);
+			getline(iss2,buffer,':'); key = buffer;
+			getline(iss2,buffer); value = buffer;
+			this->http_params.insert(std::make_pair(key, value));
+		}
+	}
 	check_allowed_methods(servr);
 }
 
@@ -56,13 +69,10 @@ void Request::check_allowed_methods(const ServerConfig &server)
 	// 404 
 	this->execute("404"); // <--- then execute it
 }
-
-
-
 // ________________EXECUTE METHOD____________________
 void Request::execute(std::string s = "null")
 {
-	std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
+	// std::cout<<"\033[48;5;236mREQUEST = '" << this->r_location<<"' ";
 	if(s == "405") // 405 unallowed method
 	{
 		const std::string& 
@@ -112,18 +122,7 @@ void Request::execute(std::string s = "null")
 }
 
 
-
-// ________________POST METHOD____________________
-void Request::Post()
-{
-	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
-}
-// ______________________________________________
-
-
-/*
-
-static bool writeToFile( std::string& filename, const std::string& content)
+bool writeToFile( std::string& filename, const std::string& content)
 {
     std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
 
@@ -135,7 +134,7 @@ static bool writeToFile( std::string& filename, const std::string& content)
 
     return true;
 }
-static std::string extract_field_path(const std::string& buf, const std::string& field, const std::string& upload_store)
+std::string extract_field_path(const std::string& buf, const std::string& field, const std::string& upload_store)
 {
 	std::string::size_type pos = buf.find(field);
 	if (pos == std::string::npos)
@@ -207,6 +206,7 @@ void Request::writeData()
 //PROBLEME POSSIBLE DE LOCATION
 void Request::Post()
 {
+	std::cout<<"|thisSOCKET:"<<this->_socket <<std::endl;
 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
 
 	//EXTRACT BOUNDARY
@@ -223,7 +223,10 @@ void Request::Post()
 	//calculate data length
 	ssize_t  content_length=0;
 	if(this->http_params.find("Content-Length") != this->http_params.end())
+	{
 		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
+		// std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
+	}
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
 	char buffer[1024];
@@ -253,30 +256,28 @@ void Request::Post()
 	
 
 }
-*/
-
-
-
 
 // ______________________GET METHOD____________________________
 void Request::Get()
 {
-   std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
+   // std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
 
     std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
 
     struct stat st;
+    // std::cout << full_path << std::endl;
 
     if (stat(full_path.c_str(), &st) == 0) // 🛠️ REQUIRED!
     {
         if (S_ISDIR(st.st_mode) && !this->_loc.index.empty())
         {
-            // std::cout << "directory found" << std::endl;
+            //std::cout << "directory found" << std::endl;
             file_path = full_path + "/" + this->_loc.index;
         }
         else
         {
+            //std::cout << "invalid" << std::endl;
             if (this->_loc.autoindex)
                 file_path = "[AUTOINDEX]";
             else
@@ -285,12 +286,12 @@ void Request::Get()
     }
     else
     {
-        // std::cerr << "stat() failed: path does not exist or access denied" << std::endl;
+        //std::cerr << "stat() failed: path does not exist or access denied" << std::endl;
         file_path = "[404]";
     }
 
 
-	std::cout << file_path << std::endl;
+	//std::cout << file_path << std::endl;
     //  autoindex
     if (file_path == "[AUTOINDEX]" )
     {
