@@ -141,7 +141,7 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)
     {
-        std::cerr << " \033[31m Error receiving data from client!  : " << client_socket << "\033[0m" << std::endl;
+        std::cerr << " \033[31m Error receiving data from client!  : " << client_socket <<" errno: "<<errno<< "\033[0m" << std::endl;
         close(client_socket);
         return;
     }
@@ -161,7 +161,6 @@ void Webserv::start(void)
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server; // server_socket -> svconfig
     std::vector<int> fds_to_remove;
-    const size_t MAX_CLIENTS = 300000;
 
     // Register all server sockets
     for (size_t i = 0; i < this->servers.size(); ++i)
@@ -211,16 +210,16 @@ void Webserv::start(void)
                     continue;
                 }
 
-                // // timeout on socket (7 sec)
-                // struct timeval timeout;
-                // timeout.tv_sec = 7;
-                // timeout.tv_usec = 0;
-                // setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+                // // timeout on socket (15 sec)
+                struct timeval timeout;
+                timeout.tv_sec = 15;
+                timeout.tv_usec = 0;
+                setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
 
                 // // force the socket non-blocking
-                // int flags = fcntl(client_fd, F_GETFL, 0);
-                // if (flags != -1)
-                //     fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+                int flags = fcntl(client_fd, F_GETFL, 0);
+                if (flags != -1)
+                    fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 
                 // add new client socket to poll
                 pollfd client_pfd;
@@ -228,12 +227,6 @@ void Webserv::start(void)
                 client_pfd.fd = client_fd;
                 client_pfd.events = POLLIN;
                 poll_fds.push_back(client_pfd);
-                // if (poll_fds.size() >= MAX_CLIENTS)
-                // {
-                //     // std::cerr << "max clients reached rejecting connections from now" << std::endl;
-                //     close(client_fd);
-                //     continue;
-                // }
                 client_fd_to_server[client_fd] = serv;
 
             }
@@ -242,7 +235,10 @@ void Webserv::start(void)
             {
                 // client socket: Handle client
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
-                this->handle_client(serv->client_socket, *serv);
+                // std::cout<<"handling: "<<i<<"serv->client_socket: "<<pfd.fd <<std::endl;
+
+                
+                this->handle_client(pfd.fd, *serv);
 
                 if (true) {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
