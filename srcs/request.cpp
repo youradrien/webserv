@@ -40,20 +40,15 @@ Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socke
 
 void Request::check_allowed_methods(const ServerConfig &server)
 {
-	//std::cout << "server" << std::endl;
 	std::vector<LocationConfig>::const_iterator it_loc = server.locations.begin();
     for(;it_loc != server.locations.end();it_loc++)
     {
-		//std::cout << it_loc->path << " vs " <<  this->r_location << std::endl;
 		if(it_loc->path == this->r_location)
 		{
-			//std::cout << "found" << std::endl;
 			this->_loc = *it_loc;
 			std::vector<std::string>::const_iterator it_meth = it_loc->allowed_methods.begin();
 			for(;it_meth != it_loc->allowed_methods.end();it_meth++)
 			{
-				//std::cout << "qq chose" << std::endl;
-				//std::cout << *it_meth << std::endl;
 			    if(this->r_method == *it_meth)
 			    {
 			        this->authorized = true;
@@ -118,6 +113,8 @@ void Request::execute(std::string s = "null")
 			this->Get();
 		else if (this->r_method == "POST")
 			this->Post();
+		else if (this->r_method == "DELETE")
+			this->Delete();		
 	}
 }
 
@@ -152,6 +149,7 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 	result += buf.substr(pos, epos - pos);
 		return result;
 }
+
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void Request::writeData()
 {
@@ -206,7 +204,6 @@ void Request::writeData()
 //PROBLEME POSSIBLE DE LOCATION
 void Request::Post()
 {
-	std::cout<<"|thisSOCKET:"<<this->_socket <<std::endl;
 	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
 
 	//EXTRACT BOUNDARY
@@ -253,14 +250,68 @@ void Request::Post()
 	{
 		std::cerr << e.what() << '\n';
 	}
-	
-
 }
+
+
+void Request::Delete()
+{
+    std::cout << "DELETE | EXECUTED !!> Socket: " << this->_socket << std::endl;
+
+    // e.g., "/uploads/file.txt" or "/index.html"
+	std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
+    std::string path = this->_loc.path;  // e.g. "/uploads/myfle.txt"
+
+    // prevent path traversal attacks (../)
+    // could do some sanitization here:
+    if (path.find("..") != std::string::npos)
+    {
+        // return some error indicator, or sanitize path
+		std::string response = 
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+    	close(this->_socket);
+		return;
+	}
+
+    // make sure root ends with slash
+	if (!root.empty() && root[root.size() - 1] != '/') 
+       root += "/";
+
+    // rmv leading slash  path ->avoid double slash
+    if (!path.empty() && path[0] == '/')
+        path.erase(0, 1);
+
+    std::string full_path = root + path; // "/var/www/your_site/uploads/myfile.txt"
+
+    // Try to delete the file
+    if (std::remove(full_path.c_str()) == 0)
+    {
+        std::string response = 
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+		return;
+    }
+    else
+    {
+        // If file deletion failed, send 404 or 403
+        std::string response = 
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+    }
+    close(this->_socket);
+}
+
 
 // ______________________GET METHOD____________________________
 void Request::Get()
 {
-   // std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
+	std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
 
     std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
@@ -373,6 +424,29 @@ void Request::Get()
 		response << "Content-Length: " << body.size() << "\r\n";
 		response << "Connection: close\r\n";
 		response << "\r\n"; // End of headers
+
+		// std::string html_list;
+		// DIR *dir = opendir(upload_dir.c_str());
+		// if (!dir)
+		// 	return "<li>Could not open upload directory</li>";
+
+		// struct dirent *entry;
+		// while ((entry = readdir(dir)) != NULL) 
+		// {
+		// 	std::string filename = entry->d_name;
+		// 	if (filename == "." || filename == "..")
+		// 		continue;
+		// 	// Each file line: filename + delete button/form
+		// 	html_list += "<li>" + filename + 
+		// 		" <form method='POST' action='/delete' style='display:inline;'>"
+		// 		"<input type='hidden' name='filename' value='" + filename + "'>"
+		// 		"<button type='submit'>Delete</button>"
+		// 		"</form></li>";
+		// }
+		// closedir(dir);
+
+
+
 		response << body;
 		this->_ReqContent = ( response.str());
 	}

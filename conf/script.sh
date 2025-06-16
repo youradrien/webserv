@@ -756,7 +756,7 @@ cat << 'EOF' > ./www/api/index.json
 EOF
 
 # create uploadz.html
-cat << 'EOF' > ./www/uploadz.html
+cat << 'EOF' > ./www/postz.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
