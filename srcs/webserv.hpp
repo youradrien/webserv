@@ -90,7 +90,6 @@ struct ServerConfig
 class Webserv
 {
     private:
-        void handle_client(int client_socket, const ServerConfig &serv);
         std::vector<ServerConfig> servers;
     public:
         Webserv(void);

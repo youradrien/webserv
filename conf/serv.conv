@@ -61,8 +61,14 @@ server {
     error_page 404 ./www/errors/404.html;
 
     client_max_body_size 500000;
-    server_name api.com;
+    server_name apiABC.com;
 
+    location / {
+        root ./www;
+        methods GET;
+        autoindex off;
+        index api.html;
+    }
     location /api {
         root ./www/api;
         methods GET;
@@ -74,8 +80,7 @@ server {
 # server2 - same port diff server name (should work and just push a server_name and get catched by the parser)
 server {
     host 127.0.0.1;
-    port 8080;
-    server_name apiABC.com;
+    port 8088;
 
     client_max_body_size 5M;
 
@@ -86,11 +91,6 @@ server {
         root ./www/api;
         index index.json;
     }
-
-    route /api/upload {
-        methods POST;
-        upload_store ./www/api/uploads;
-    }
 }
 
 
@@ -98,26 +98,26 @@ server {
 server {
     host 127.0.0.1;
     port 9091;
-    server_name files.local;
+    server_name campton;
 
     error_page 404 /errors/404.html;
 
     client_max_body_size 50M;
 
-    route /public {
+    route / {
         methods GET;
         root ./www;
-        autoindex on;
-        index index.html;
+        autoindex off;
+        index campton.html;
     }
-}   
+}
 
 
 # sever4 - On a different port GET renders a special -> special.html
 server {
     host 127.0.0.1;
     port 4343;
-    server_name speciall;
+    server_name special_page;
 
     error_page 404 /errors/404.html;
 
@@ -127,6 +127,6 @@ server {
         methods GET;
         root ./public;
         autoindex off;
-        index special.html;
+        index indexx.html;
     }
 }   

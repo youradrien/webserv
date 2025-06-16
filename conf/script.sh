@@ -12,12 +12,14 @@
 rm -rf ./www
 rm -rf ./uploads
 rm -rf ./cgi-bin
+rm -rf ./public
 
 mkdir -p ./www
 mkdir -p ./www/errors
 mkdir -p ./www/api
 mkdir -p ./uploads
 mkdir -p ./cgi-bin
+mkdir -p ./public
 
 chmod -R 755 ./
 
@@ -77,7 +79,6 @@ cat << 'EOF' > ./www/index.html
             margin-top: 2rem;
         }
         .links a {
-  # just for a 403 req
             display: inline-block;
             margin: 0.5rem;
             padding: 0.75rem 1.5rem;
@@ -90,18 +91,37 @@ cat << 'EOF' > ./www/index.html
         .links a:hover {
             background: #005f99;
         }
+        .ports {
+            margin-top: 3rem;
+        }
+        .ports h3 {
+            margin-bottom: 1rem;
+        }
+        .ports a {
+            display: inline-block;
+            margin: 0.4rem;
+            padding: 0.5rem 1.2rem;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+        .ports a:hover {
+            background: #1e7e34;
+        }
     </style>
 </head>
 <body>
-    <h4>Jsaintho et Gchauvot presents: </h4>
+    <h4>Jsaintho et Gchauvot presents:</h4>
     <div class="card">
         <h1>42 WEBSERVS GOES BRRRRRRRRR!</h1>
         <p>Cette page is served by your <strong>webserv</strong> C++98 HTTP server.</p>
         <div class="links">
-            <a href="/non-exzeistent">trigger le 404</a>
-            <a href="/null"> 403 no autoindex</a>
-            <a href="/files">trigger 403 avec autoindex (list les files)</a>
-            <a href="/upload">upload endpoint</a>
+            <a href="/non-exzeistent">404</a>
+            <a href="/null">403 no-autoindex</a>
+            <a href="/files">403 autoindex-on (root files listing)</a>
+            <a href="/upload">file-upload</a>
             <a href="/cgi">CGI Endpoint</a>
             <form action="/files" method="POST" onsubmit="return confirm('trigger 405 error with POST?');" style="display:inline;">
                 <button type="submit" style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; padding:0;">
@@ -109,10 +129,18 @@ cat << 'EOF' > ./www/index.html
                 </button>
             </form>
         </div>
+
+        <div class="ports">
+            <h3>Available Servers</h3>
+            <a href="http://127.0.0.1:8088" target="_blank">localhost:8088 (here)</a>
+            <a href="http://127.0.0.1:8082" target="_blank">apiABC.com:8082</a>
+            <a href="http://127.0.0.1:9091" target="_blank">campton:9091</a>
+            <a href="http://127.0.0.1:4343" target="_blank">special</a>
+        </div>
     </div>
     <h5>all rights reserved. 
         <a href="https://github.com/youradrien">le j</a>
-        <a href="https://github.com/gauchau> le g</a>
+        <a href="https://github.com/gauchau">le g</a>
     </h5>
 </body>
 </html>
@@ -179,12 +207,86 @@ cat << 'EOF' > ./www/errors/404.html
         this response code is probably the most well known due to its frequent occurrence on the web.
         </h4>
         <p>Oops! you went into cyberspace cuh 🌌</p>
-        <a href="/">retour à la maison</a>
+        <a href="http://127.0.0.1:8088">retour à la "maison"</a>
         <div class="emoji">🛸👾🚀</div>
     </div>
 </body>
 </html>
 EOF
+
+
+# create 404.html
+cat << 'EOF' > ./www/api.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API (apiABC.com:8082)</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 5rem;
+            margin: 0;
+            color: #ffffff;
+            text-shadow: 2px 2px #ff6f91;
+        }
+
+        p {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+            color: #fff0f5;
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-top: 2rem;
+            animation: float 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to API_ABC</h1>
+        <h2>
+            this location is just made to render/simulate api call
+        </h2>
+        <p>42</p>
+        <button>
+                <a href="/api">check api logs 🌌</a>
+        </button>
+        <button>
+                <a href="http://localhost:8088/">retour à la maison</a>
+        </button>
+        <div class="emoji">🛸👾🚀</div>
+    </div>
+</body>
+</html>
+EOF
+
+
 
 # create 403.html non - autoindexer
 cat << 'EOF' > ./www/errors/403.html
@@ -420,16 +522,87 @@ cat << 'EOF' > ./www/errors/autoindex.html
 </html>
 EOF
 
-
-
-
-# create index.html
-cat << 'EOF' > ./www/special.html
+cat << 'EOF' >> ./www/campton.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Something Special</title>
+    <meta charset="UTF-8">
+    <title>Welcome to Campton, USA</title>
+    <style>
+        body {
+            background: #e6f2ff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            color: #333;
+        }
+        header {
+            background: #005f99;
+            color: white;
+            width: 100%;
+            padding: 2rem 0;
+        }
+        main {
+            padding: 2rem;
+        }
+        h1 {
+            margin: 0;
+            font-size: 3rem;
+        }
+        p {
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            max-width: 600px;
+        }
+        img {
+            margin-top: 2rem;
+            max-width: 80%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        footer {
+            margin-top: auto;
+            padding: 1rem;
+            background: #ddd;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Welcome to Campton, USA</h1>
+    </header>
+    <main>
+        <p>
+            Nestled in the heart of the countryside, Campton is a small town with a big heart. 
+            Whether you're here for the scenic views, local hospitality, or just passing through — 
+            there's always something to enjoy in Campton.
+        </p>
+        <p>
+            From hiking trails and historic buildings to cozy diners and friendly faces, 
+            Campton invites you to slow down and soak in the charm of small-town America.
+        </p>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/8e/Hood_Camptown_Scene.jpg" alt="Hood Campton" />
+    </main>
+    <footer>
+        2025 Campton Tourism Board
+    </footer>
+</body>
+</html>
+EOF
+
+# create SPECIAL.html
+cat << 'EOF' > ./public/indexx.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SPECIAL!!!!</title>
   <style>
     html, body {
       margin: 0;
@@ -437,8 +610,16 @@ cat << 'EOF' > ./www/special.html
       height: 100%;
       overflow: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: radial-gradient(ellipse at center, #000010 0%, #000000 100%);
       color: white;
+      background: linear-gradient(270deg, #1a0040, #000033, #2e0055, #000044);
+      background-size: 800% 800%;
+      animation: bgColorShift 3s ease infinite;
+    }
+
+    @keyframes bgColorShift {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
     }
 
     canvas {
@@ -446,6 +627,7 @@ cat << 'EOF' > ./www/special.html
       top: 0;
       left: 0;
       z-index: 0;
+      display: block;
     }
 
     .content {
@@ -455,6 +637,7 @@ cat << 'EOF' > ./www/special.html
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-direction: column;
       text-align: center;
     }
 
@@ -480,15 +663,36 @@ cat << 'EOF' > ./www/special.html
   <canvas id="stars"></canvas>
   <div class="content">
     <h1>something special</h1>
+    <h1><a href=http://127.0.0.1:8088/>HOME</a></h1>
+
   </div>
 
   <script>
-    // Starfield background
     const canvas = document.getElementById('stars');
     const ctx = canvas.getContext('2d');
-    let stars = [];
 
-    function dstars() {
+    // Resize canvas to fill window
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Create stars
+    const starCount = 150;
+    let stars = [];
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.2 + 0.3,
+        speed: Math.random() * 0.5 + 0.2,
+        alpha: Math.random() * 0.8 + 0.2
+      });
+    }
+
+    function drawStars() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#ffffff';
       stars.forEach(star => {
@@ -496,6 +700,7 @@ cat << 'EOF' > ./www/special.html
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
         ctx.fill();
+
         star.y += star.speed;
         if (star.y > canvas.height) {
           star.y = 0;
@@ -506,7 +711,7 @@ cat << 'EOF' > ./www/special.html
       requestAnimationFrame(drawStars);
     }
 
-    d-stars();
+    drawStars();
   </script>
 </body>
 </html>

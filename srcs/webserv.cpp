@@ -128,13 +128,22 @@ void Webserv::init(void)
             close(serv_.server_socket);
             return;
         }
-        std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host << ":" << serv_.port  << "\033[0m "<< std::endl;
+        std::cout << "\033[32mServer[" << i << "] is ready on  " << serv_.host 
+                << ":" << serv_.port << " ["<< serv_.server_name << "]" << "\033[0m "<< std::endl;
     }
 }
 
 
+
+
+
+
+
+
+
+
 // handle a client request (send a basic HTTP response)
-void Webserv::handle_client(int client_socket, const ServerConfig &serv)
+static bool handle_client(int client_socket, const ServerConfig &serv)
 {
     char buffer[1024];
     // std::cerr << " \033[31m Error " << client_socket<<buffer<<sizeof(buffer-1) << "\033[0m" << std::endl;
@@ -143,7 +152,7 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     {
         std::cerr << " \033[31m Error receiving data from client!  : " << client_socket <<" errno: "<<errno<< "\033[0m" << std::endl;
         close(client_socket);
-        return;
+        return (false);
     }
     buffer[bytes_received] = '\0'; // null-terminate data
 
@@ -153,7 +162,17 @@ void Webserv::handle_client(int client_socket, const ServerConfig &serv)
     std::string response_ = R._get_ReqContent();
     send(client_socket, response_.c_str(), (response_.size()), 0);
     close(client_socket); // Close client socket after sending the response
+
+    return(true);
 }
+
+
+
+
+
+
+
+
 
 void Webserv::start(void)
 {
@@ -211,10 +230,10 @@ void Webserv::start(void)
                 }
 
                 // // timeout on socket (15 sec)
-                struct timeval timeout;
-                timeout.tv_sec = 15;
-                timeout.tv_usec = 0;
-                setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+                // struct timeval timeout;
+                // timeout.tv_sec = 15;
+                // timeout.tv_usec = 0;
+                // setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
 
                 // // force the socket non-blocking
                 int flags = fcntl(client_fd, F_GETFL, 0);
@@ -238,14 +257,12 @@ void Webserv::start(void)
                 // std::cout<<"handling: "<<i<<"serv->client_socket: "<<pfd.fd <<std::endl;
 
                 
-                this->handle_client(pfd.fd, *serv);
+                bool done = handle_client(pfd.fd, *serv);
 
-                if (true) {
+                if (done) {
                     int client_fd = pfd.fd;  // Add this at the start of the else branch
-                    close(client_fd);
-
+                    // close(client_fd);
                     fds_to_remove.push_back(client_fd);
-                    // std::cout << "Successfully closed connection (fd: " << client_fd << ")" << std::endl;
                 }
                 
             }
