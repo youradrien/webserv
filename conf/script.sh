@@ -984,71 +984,117 @@ cat << 'EOF' > ./www/postz.html
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>403 Webserv.cpp autoindex</title>
+    <title>Upload - Webserver.cpp</title>
     <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: "Segoe UI", sans-serif;
-            background: #f4f4f4;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #004d40, #26a69a);
+            color: #e0f2f1;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
+            overflow: hidden;
         }
+
+        .container {
+            text-align: center;
+            background-color: rgba(0, 77, 64, 0.8);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
         h1 {
-            color: #007acc;
             font-size: 3rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            color: #b2dfdb;
+            text-shadow: 1px 1px #00251a;
         }
+
         p {
             font-size: 1.2rem;
-            color: #555;
+            color: #a7ffeb;
         }
-        .card {
-            background: white;
-            padding: 2rem 3rem;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .links {
+
+        form {
             margin-top: 2rem;
         }
-        .links a {
-            display: inline-block;
-            margin: 0.5rem;
+
+        label {
+            font-size: 1rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="file"] {
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            background-color: #e0f2f1;
+            border-radius: 6px;
+            border: none;
+        }
+
+        button {
             padding: 0.75rem 1.5rem;
-            background: #007acc;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
+            background-color: #4db6ac;
+            color: #004d40;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
             transition: background 0.3s ease;
         }
-        .links a:hover {
-            background: #005f99;
+
+        button:hover {
+            background-color: #26a69a;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #80cbc4;
+            color: #004d40;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #4db6ac;
+        }
+
+        .emoji {
+            font-size: 2.5rem;
+            margin-top: 1rem;
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>webserver.cpp AUTOINDXER</h1>
-        <p>cette page list files et folders dans /var/www .</p>
-        <h1>directory listing :</h1>
-        <ul>
-        <!--CONTENT-->
-        </ul>
-        <h5>
-            <a href="/">retour</a>
-        </h5>
+    <div class="container">
+        <h1>File Upload</h1>
+        <p>Upload a file to <code>/upload</code></p>
         <form action="/upload" method="post" enctype="multipart/form-data" autocomplete="off">
-            <label for="fileUpload">Pick a file 🌸</label>
-            <input type="file" id="fileUpload" name="file" />
+            <label for="fileUpload">📁 Pick a file</label>
+            <input type="file" id="fileUpload" name="file" required />
             <br />
-            <button type="submit">Upload</button>
+            <button type="submit">🚀 Upload</button>
         </form>
+        <a href="/">← Return Home</a>
+        <div class="emoji">🌿📤</div>
     </div>
 </body>
 </html>
