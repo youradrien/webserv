@@ -225,7 +225,7 @@ void Request::Post()
 	}
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
-	char buffer[1024];
+	char buffer[2048];
 	long bytes_received = 0;
 	while (bytes_received < content_length)
 	{

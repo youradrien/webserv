@@ -25,6 +25,14 @@ server {
     allowed_methods GET POST;
   }
 
+  location /delete-upload {
+    root ./www;
+    upload_dir ./uploads;
+    index deletz.html;
+    allowed_methods GET DELETE;
+    autoindex off;
+  }
+
   # CGI route (Python example)
   location /cgi {
     root ./cgi-bin;

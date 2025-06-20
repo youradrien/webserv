@@ -122,13 +122,16 @@ cat << 'EOF' > ./www/index.html
             <a href="/non-exzeistent">404</a>
             <a href="/null">403 no-autoindex</a>
             <a href="/files">403 autoindex-on (root files listing)</a>
-            <a href="/upload">file-upload</a>
-            <a href="/cgi">CGI Endpoint</a>
             <form action="/files" method="POST" onsubmit="return confirm('trigger 405 error with POST?');" style="display:inline;">
                 <button type="submit" style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; padding:0;">
                     trigger le 405 (POST not allowed)
                 </button>
             </form>
+        </div>
+        <div class="links">
+            <a href="/upload">Upload-file</a>
+            <a href="/delete-upload">delete-files</a>
+            <a href="/cgi">CGI Endpoint</a>s
         </div>
 
         <div class="ports">
@@ -978,7 +981,7 @@ cat << 'EOF' > ./www/api/index.json
 }
 EOF
 
-# create uploadz.html
+# create postz.html
 cat << 'EOF' > ./www/postz.html
 <!DOCTYPE html>
 <html lang="en">
@@ -1045,6 +1048,13 @@ cat << 'EOF' > ./www/postz.html
             border: none;
         }
 
+        #filenameDisplay {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #b2dfdb;
+            font-style: italic;
+        }
+
         button {
             padding: 0.75rem 1.5rem;
             background-color: #4db6ac;
@@ -1090,11 +1100,148 @@ cat << 'EOF' > ./www/postz.html
         <form action="/upload" method="post" enctype="multipart/form-data" autocomplete="off">
             <label for="fileUpload">📁 Pick a file</label>
             <input type="file" id="fileUpload" name="file" required />
-            <br />
+            <div id="filenameDisplay">No file selected</div>
             <button type="submit">🚀 Upload</button>
         </form>
         <a href="/">← Return Home</a>
         <div class="emoji">🌿📤</div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileUpload');
+        const fileNameDisplay = document.getElementById('filenameDisplay');
+
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = "No file selected";
+            }
+        });
+    </script>
+</body>
+</html>
+EOF
+
+# create deletz.html
+cat << 'EOF' > ./www/deletz.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Delete Files - Webserver.cpp</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4a148c, #7b1fa2);
+            color: #f3e5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background-color: rgba(74, 20, 140, 0.85);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            animation: float 3s ease-in-out infinite;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #ce93d8;
+            text-shadow: 1px 1px #12005e;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 0.5rem 0;
+            background-color: #6a1b9a;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            color: #f3e5f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        form {
+            display: inline;
+        }
+
+        button {
+            padding: 0.4rem 0.8rem;
+            background-color: #ab47bc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #9c27b0;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #ba68c8;
+            color: #4a148c;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #ab47bc;
+        }
+
+        .emoji {
+            font-size: 2.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Uploaded Files</h1>
+        <ul>
+            <!--REPLACE_WITH_FILE_LIST-->
+            <!-- Example:
+            <li>
+                file.txt
+                <form action="/delete-upload/file.txt" method="post" onsubmit="return confirm('Delete this file?');">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </li>
+            -->
+        </ul>
+        <a href="/">← Return Home</a>
+        <div class="emoji">📁🗑️💜</div>
     </div>
 </body>
 </html>
