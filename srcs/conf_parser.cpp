@@ -119,11 +119,20 @@ bool Webserv::parseConfigFile(const std::string& filename)
                     else if (key == "client_max_body_size") cur_serv.client_max_body_size = (size_t)(parseSize(value));
                     else if (key == "error_page") {
                         std::vector<std::string> s = split_string(line);
+                        // std::cout << "r" << (static_cast<unsigned int>(atoi( s[1].c_str()))) << std::endl;
+                        std::string err_page = s[2];
+                        if (!err_page.empty() && err_page[err_page.size() - 1] == ';') {
+                            err_page.erase(err_page.size() - 1);  // Remove trailing ';'
+                        }
+
                         cur_serv.error_pages.push_back(std::make_pair(
-                            static_cast<unsigned int>(atoi( s[1].c_str())),
-                            s[2]
+                            static_cast<unsigned int>(atoi(s[1].c_str())),
+                            err_page
                         ));
-                    
+                        // cur_serv.error_pages.push_back(std::make_pair(
+                        //     static_cast<unsigned int>(atoi( s[1].c_str())),
+                        //     s[2]
+                        // ));
                     }
                 } 
                 // eaach route part

@@ -17,6 +17,7 @@ rm -rf ./public
 mkdir -p ./www
 mkdir -p ./www/errors
 mkdir -p ./www/api
+mkdir -p ./www/default
 mkdir -p ./uploads
 mkdir -p ./cgi-bin
 mkdir -p ./public
@@ -146,6 +147,8 @@ cat << 'EOF' > ./www/index.html
 </html>
 EOF
 
+
+
 # create 404.html
 cat << 'EOF' > ./www/errors/404.html
 <!DOCTYPE html>
@@ -156,16 +159,16 @@ cat << 'EOF' > ./www/errors/404.html
     <style>
         @keyframes float {
             0% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-8px); }
             100% { transform: translateY(0); }
         }
 
         body {
             margin: 0;
             padding: 0;
-            font-family: "Comic Sans MS", cursive, sans-serif;
-            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8e0e00, #e52e71);
+            color: #ffebee;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -179,16 +182,44 @@ cat << 'EOF' > ./www/errors/404.html
         }
 
         h1 {
-            font-size: 5rem;
+            font-size: 6rem;
             margin: 0;
-            color: #ffffff;
-            text-shadow: 2px 2px #ff6f91;
+            color: #ffcdd2;
+            text-shadow: 2px 2px #b71c1c;
+        }
+
+        h2 {
+            color: #ffcccb;
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            color: #f8bbd0;
+            max-width: 600px;
+            margin: 1.5rem auto;
+            line-height: 1.6;
         }
 
         p {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             margin-top: 1rem;
-            color: #fff0f5;
+            color: #ffdde1;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #ef5350;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #e53935;
         }
 
         .emoji {
@@ -201,14 +232,200 @@ cat << 'EOF' > ./www/errors/404.html
 <body>
     <div class="container">
         <h1>404</h1>
+        <h2>NON-default 404</h2>
         <h4>
-        the server cannot find the requested resource.
-        in the browser, this means the URL is not recognized. in an API this can also mean that the endpoint is valid but the resource itself does not exist
-        this response code is probably the most well known due to its frequent occurrence on the web.
+            couldn't find what you're looking for.<br>
+            Maybe the URL is wrong, or the resource just vanished into the void.<br>
+            Happens to the best of us.
         </h4>
-        <p>Oops! you went into cyberspace cuh 🌌</p>
-        <a href="http://127.0.0.1:8088">retour à la "maison"</a>
-        <div class="emoji">🛸👾🚀</div>
+        <p>You’ve drifted off course... 🔥</p>
+        <a href="http://127.0.0.1:8088">Return to safety</a>
+        <div class="emoji">🚨🧯🛑</div>
+    </div>
+</body>
+</html>
+EOF
+
+
+# DEFAULT blue-themed 404.html
+cat << 'EOF' > ./www/default/404.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>404 - Page Not Found</title>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #e0f7fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 6rem;
+            margin: 0;
+            color: #bbdefb;
+            text-shadow: 2px 2px #0d47a1;
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            color: #b3e5fc;
+            max-width: 600px;
+            margin: 1.5rem auto;
+            line-height: 1.6;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            color: #e3f2fd;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #64b5f6;
+            color: #0d47a1;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #42a5f5;
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-top: 2rem;
+            animation: float 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <h2>DEFAULT 404</h2>
+        <h4>
+            The server couldn't find what you're looking for.<br>
+            Maybe the URL is wrong, or the resource just vanished into the void.<br>
+            Happens to the best of us.
+        </h4>
+        <p>You’ve drifted off course... 🚧</p>
+        <a href="http://127.0.0.1:8088">Return to safety</a>
+        <div class="emoji">🌊🛰️🔵</div>
+    </div>
+</body>
+</html>
+EOF
+
+
+# create blue-themed 403.html
+cat << 'EOF' > ./www/default/403.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>403 - Forbidden</title>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: #e0f7fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 6rem;
+            margin: 0;
+            color: #b3e5fc;
+            text-shadow: 2px 2px #0d47a1;
+        }
+
+        h4 {
+            font-size: 1.3rem;
+            color: #e3f2fd;
+            max-width: 600px;
+            margin: 1.5rem auto;
+            line-height: 1.6;
+        }
+
+        p {
+            font-size: 1.1rem;
+            color: #bbdefb;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 0.6rem 1.2rem;
+            background-color: #4fc3f7;
+            color: #003c8f;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #29b6f6;
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-top: 2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>403</h1>
+        <h4>
+            You don't have permission to access this resource.<br>
+            Maybe you took a wrong turn, or this zone is locked 🔐.
+        </h4>
+        <p>Security drones are watching... 🛡️</p>
+        <a href="http://127.0.0.1:8088">Back to safer ground</a>
+        <div class="emoji">🚫🧊🔐</div>
     </div>
 </body>
 </html>
@@ -663,8 +880,14 @@ cat << 'EOF' > ./public/indexx.html
   <canvas id="stars"></canvas>
   <div class="content">
     <h1>something special</h1>
+  
     <h1><a href=http://127.0.0.1:8088/>HOME</a></h1>
-
+    <h3>
+        <a href="/null">another 403</a>
+    </h3>
+    <h3>
+        <a href="/ezrrrr'__'">default 404</a>
+    </h3>
   </div>
 
   <script>

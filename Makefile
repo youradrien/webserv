@@ -29,6 +29,7 @@ fclean: clean
 	rm -rf ./uploads
 	rm -rf ./cgi-bin
 	rm -rf ./srcs/build
+	rm -rf ./public
 
 # Rebuild everything
 re: fclean all

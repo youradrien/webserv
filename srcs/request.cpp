@@ -13,27 +13,27 @@ static std::string readFile(const std::string& file_path)
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
 } 
-Request::Request(char *raw, const ServerConfig &servr, int socket):_socket(socket)
+Request::Request(char *raw, const ServerConfig &servr, int socket)
+    : _server(servr), _socket(socket)
 {
-	this->r_header = raw;
-	std::istringstream iss(raw);
-	std::string buffer;
+    this->r_header = raw;
+    std::istringstream iss(raw);
+    std::string buffer;
 
-	// std::cout << this->r_full_request << std::endl;
-	iss>> this->r_method>> this->r_location >> this->r_version;
+    iss >> this->r_method >> this->r_location >> this->r_version;
 
-	while (getline(iss,buffer))
-	{
-		if(buffer.size()>1)
-    	{
-			std::string key, value;
-			std::istringstream iss2(buffer);
-			getline(iss2,buffer,':'); key = buffer;
-			getline(iss2,buffer); value = buffer;
-			this->http_params.insert(std::make_pair(key, value));
-		}
-	}
-	check_allowed_methods(servr);
+    while (getline(iss, buffer)) {
+        if (buffer.size() > 1) {
+            std::string key, value;
+            std::istringstream iss2(buffer);
+            getline(iss2, buffer, ':');
+            key = buffer;
+            getline(iss2, buffer);
+            value = buffer;
+            this->http_params.insert(std::make_pair(key, value));
+        }
+    }
+    check_allowed_methods(servr);
 }
 
 
@@ -91,7 +91,7 @@ void Request::execute(std::string s = "null")
 			response << "<p> - " + this->_loc.allowed_methods[i] + " Method</p>";
 
 		this->_ReqContent = ( response.str());
-	}else if (s == "404") // 404 not found
+	}/*else if (s == "404") // 404 not found
 	{
 		// render custom 404 page
 		const std::string& 
@@ -105,7 +105,7 @@ void Request::execute(std::string s = "null")
 		response << "\r\n"; // End of headers
 		response << body;
 		this->_ReqContent = ( response.str());
-	}else
+	}*/else
 	{
 		if(!this->authorized)
 			return ;
@@ -222,7 +222,6 @@ void Request::Post()
 	if(this->http_params.find("Content-Length") != this->http_params.end())
 	{
 		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
-		// std::cout<<"ctn len:" <<this->http_params.find("Content-Length")->second<<std::endl;
 	}
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
@@ -256,6 +255,8 @@ void Request::Post()
 void Request::Delete()
 {
     std::cout << "DELETE | EXECUTED !!> Socket: " << this->_socket << std::endl;
+	// make sure that delete only runs into the upload/ path
+
 
     // e.g., "/uploads/file.txt" or "/index.html"
 	std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
@@ -312,7 +313,6 @@ void Request::Delete()
 void Request::Get()
 {
 	std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
-
     std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
 
@@ -323,12 +323,10 @@ void Request::Get()
     {
         if (S_ISDIR(st.st_mode) && !this->_loc.index.empty())
         {
-            //std::cout << "directory found" << std::endl;
             file_path = full_path + "/" + this->_loc.index;
         }
         else
         {
-            //std::cout << "invalid" << std::endl;
             if (this->_loc.autoindex)
                 file_path = "[AUTOINDEX]";
             else
@@ -337,12 +335,11 @@ void Request::Get()
     }
     else
     {
-        //std::cerr << "stat() failed: path does not exist or access denied" << std::endl;
         file_path = "[404]";
     }
 
 
-	//std::cout << file_path << std::endl;
+	// std::cout << file_path << std::endl;
     //  autoindex
     if (file_path == "[AUTOINDEX]" )
     {
@@ -378,8 +375,20 @@ void Request::Get()
 	// 404 no
 	else if (file_path == "[404]")
 	{
+		std::string path_404 = "./www/default/404.html";
+		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
+		it = this->_server.error_pages.begin();
+		for (; it != this->_server.error_pages.end(); ++it)
+		{
+			if (it->first == 404)
+			{
+				// std::cout << "Found 404 page for " << it->first << ": " << it->second << std::endl;
+				path_404 = it->second;
+				break;
+			}
+		}
 		const std::string& 
-				body = readFile("./www/errors/404.html"),
+				body = readFile(path_404),
 				contentType = "text/html";
 		std::stringstream response;
 		response << "HTTP/1.1 404 Not Found\r\n";
@@ -393,8 +402,37 @@ void Request::Get()
 	// 403 forbidden
 	else if (file_path == "[403]")
 	{
+		/*
+		std::string path_403 = "./www/default/403.html";
+		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
+		it = this->_server.error_pages.begin();
+		for (; it != this->_server.error_pages.end(); ++it)
+		{
+			if (it->first == 403 || it->first == 404)
+			{
+				std::cout << "Found error page for " << it->first << ": " << it->second << std::endl;
+				path_403 = it->second;
+				break;
+			}
+		}
 		const std::string& 
-				body = readFile("./www/errors/403.html"),
+				body = readFile(path_403),
+				contentType = "text/html";
+		*/
+		std::string path_403 = "./www/default/403.html";
+		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
+		it = this->_server.error_pages.begin();
+		for (; it != this->_server.error_pages.end(); ++it)
+		{
+			if (it->first == 403)
+			{
+				// std::cout << "Found 403 page for " << it->first << ": " << it->second << std::endl;
+				path_403 = it->second;
+				break;
+			}
+		}
+		const std::string& 
+				body = readFile(path_403),
 				contentType = "text/html";
 		std::stringstream response;
 		response << "HTTP/1.1 403 Forbidden\r\n";
@@ -417,35 +455,12 @@ void Request::Get()
 			body = readFile(file_path),
 			contentType = "text/html";
 
-		// return file content in a sort of http kind idk
 		std::stringstream response;
 		response << "HTTP/1.1 200 OK\r\n";
 		response << "Content-Type: " << contentType << "\r\n";
 		response << "Content-Length: " << body.size() << "\r\n";
 		response << "Connection: close\r\n";
 		response << "\r\n"; // End of headers
-
-		// std::string html_list;
-		// DIR *dir = opendir(upload_dir.c_str());
-		// if (!dir)
-		// 	return "<li>Could not open upload directory</li>";
-
-		// struct dirent *entry;
-		// while ((entry = readdir(dir)) != NULL) 
-		// {
-		// 	std::string filename = entry->d_name;
-		// 	if (filename == "." || filename == "..")
-		// 		continue;
-		// 	// Each file line: filename + delete button/form
-		// 	html_list += "<li>" + filename + 
-		// 		" <form method='POST' action='/delete' style='display:inline;'>"
-		// 		"<input type='hidden' name='filename' value='" + filename + "'>"
-		// 		"<button type='submit'>Delete</button>"
-		// 		"</form></li>";
-		// }
-		// closedir(dir);
-
-
 
 		response << body;
 		this->_ReqContent = ( response.str());

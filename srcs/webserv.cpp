@@ -145,7 +145,7 @@ void Webserv::init(void)
 // handle a client request (send a basic HTTP response)
 static bool handle_client(int client_socket, const ServerConfig &serv)
 {
-    char buffer[1024];
+    char buffer[2048];
     // std::cerr << " \033[31m Error " << client_socket<<buffer<<sizeof(buffer-1) << "\033[0m" << std::endl;
     ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received < 0)

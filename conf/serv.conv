@@ -5,6 +5,7 @@ server {
     server_name localhost;
 
     error_page 404 ./www/errors/404.html;
+    error_page 403 ./www/default/403.html;
     client_max_body_size 10M;
 
   # Main route
@@ -100,8 +101,6 @@ server {
     port 9091;
     server_name campton;
 
-    error_page 404 /errors/404.html;
-
     client_max_body_size 50M;
 
     route / {
@@ -119,8 +118,7 @@ server {
     port 4343;
     server_name special_page;
 
-    error_page 404 /errors/404.html;
-
+    error_page 403 ./www/errors/403.html;
     client_max_body_size 50M;
 
     route / {
@@ -128,5 +126,12 @@ server {
         root ./public;
         autoindex off;
         index indexx.html;
+    }
+
+    # just for a 403 req
+    location /null {
+      root ./www;
+      autoindex off;
+      allowed_methods GET;
     }
 }   
