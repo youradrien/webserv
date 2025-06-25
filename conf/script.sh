@@ -40,7 +40,7 @@ EOF
 
 
 
-# create index.html
+# create index.html with purple theme
 cat << 'EOF' > ./www/index.html
 <!DOCTYPE html>
 <html lang="en">
@@ -52,64 +52,114 @@ cat << 'EOF' > ./www/index.html
             margin: 0;
             padding: 0;
             font-family: "Segoe UI", sans-serif;
-            background: #f4f4f4;
-            color: #333;
+            background: linear-gradient(135deg, #3f0f4f, #7e57c2);
+            color: #f3e5f5;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
         }
+
         h1 {
-            color: #007acc;
+            color: #e1bee7;
             font-size: 3rem;
             margin-bottom: 0.5rem;
+            text-shadow: 1px 1px #2c003e;
         }
+
         p {
             font-size: 1.2rem;
-            color: #555;
+            color: #f8eafa;
         }
+
         .card {
-            background: white;
+            background: rgba(63, 15, 79, 0.85);
             padding: 2rem 3rem;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             text-align: center;
+            animation: float 3s ease-in-out infinite;
         }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+
         .links {
             margin-top: 2rem;
         }
-        .links a {
+
+        .links a, .links form button {
             display: inline-block;
             margin: 0.5rem;
             padding: 0.75rem 1.5rem;
-            background: #007acc;
+            background: #ba68c8;
             color: white;
             text-decoration: none;
             border-radius: 8px;
+            font-weight: bold;
             transition: background 0.3s ease;
         }
-        .links a:hover {
-            background: #005f99;
+
+        .links a:hover, .links form button:hover {
+            background: #ab47bc;
         }
+
+        .links form {
+            display: inline;
+        }
+
+        .links form button {
+            background: none;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            color: #bb86fc;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
         .ports {
             margin-top: 3rem;
         }
+
         .ports h3 {
             margin-bottom: 1rem;
+            color: #d1c4e9;
         }
+
         .ports a {
             display: inline-block;
             margin: 0.4rem;
             padding: 0.5rem 1.2rem;
-            background: #28a745;
+            background: #9575cd;
             color: white;
             text-decoration: none;
             border-radius: 6px;
             transition: background 0.3s ease;
         }
+        .lk a{
+            border: 1px solid white;
+        }
+
         .ports a:hover {
-            background: #1e7e34;
+            background: #7e57c2;
+        }
+
+        h4, h5 {
+            margin-top: 1rem;
+            color: #f3e5f5;
+        }
+
+        h5 a {
+            color: #d1c4e9;
+            margin-left: 0.5rem;
+        }
+
+        h5 a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -122,18 +172,15 @@ cat << 'EOF' > ./www/index.html
             <a href="/non-exzeistent">404</a>
             <a href="/null">403 no-autoindex</a>
             <a href="/files">403 autoindex-on (root files listing)</a>
-            <form action="/files" method="POST" onsubmit="return confirm('trigger 405 error with POST?');" style="display:inline;">
-                <button type="submit" style="background:none; border:none; color:blue; text-decoration:underline; cursor:pointer; padding:0;">
-                    trigger le 405 (POST not allowed)
-                </button>
+            <form action="/files" method="POST" onsubmit="return confirm('trigger 405 error with POST?');">
+                <button type="submit">trigger le 405 (POST not allowed)</button>
             </form>
         </div>
-        <div class="links">
-            <a href="/upload">Upload-file</a>
-            <a href="/delete-upload">delete-files</a>
-            <a href="/cgi">CGI Endpoint</a>s
+        <div class="links lk">
+            <a href="/upload">UPLOAD +</a>
+            <a href="/delete-upload">DELETE -</a>
+            <a href="/cgi">CGI Endpoint</a>
         </div>
-
         <div class="ports">
             <h3>Available Servers</h3>
             <a href="http://127.0.0.1:8088" target="_blank">localhost:8088 (here)</a>
@@ -149,7 +196,6 @@ cat << 'EOF' > ./www/index.html
 </body>
 </html>
 EOF
-
 
 
 # create 404.html
@@ -1097,12 +1143,15 @@ cat << 'EOF' > ./www/postz.html
     <div class="container">
         <h1>File Upload</h1>
         <p>Upload a file to <code>/upload</code></p>
-        <form action="/upload" method="post" enctype="multipart/form-data" autocomplete="off">
+
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" autocomplete="off">
             <label for="fileUpload">📁 Pick a file</label>
             <input type="file" id="fileUpload" name="file" required />
             <div id="filenameDisplay">No file selected</div>
             <button type="submit">🚀 Upload</button>
         </form>
+        <div id="uploadStatus" style="margin-top: 1rem; font-weight: bold;"></div>
+
         <a href="/">← Return Home</a>
         <div class="emoji">🌿📤</div>
     </div>
@@ -1110,6 +1159,8 @@ cat << 'EOF' > ./www/postz.html
     <script>
         const fileInput = document.getElementById('fileUpload');
         const fileNameDisplay = document.getElementById('filenameDisplay');
+        const uploadForm = document.getElementById('uploadForm');
+        const statusDiv = document.getElementById('uploadStatus');
 
         fileInput.addEventListener('change', function() {
             if (fileInput.files.length > 0) {
@@ -1118,7 +1169,31 @@ cat << 'EOF' > ./www/postz.html
                 fileNameDisplay.textContent = "No file selected";
             }
         });
-    </script>
+
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Stop default form submit
+
+            const formData = new FormData(uploadForm);
+
+            try {
+                const res = await fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (res.ok) {
+                    statusDiv.textContent = "✅ Fichier uploadé avec succès !";
+                    statusDiv.style.color = "#a7ffeb";
+                } else {
+                    statusDiv.textContent = "❌ Erreur lors de l'upload.";
+                    statusDiv.style.color = "salmon";
+                }
+            } catch (err) {
+                statusDiv.textContent = "❌ Une erreur réseau est survenue.";
+                statusDiv.style.color = "red";
+            }
+        });
+        </script>
 </body>
 </html>
 EOF

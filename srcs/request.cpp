@@ -118,19 +118,6 @@ void Request::execute(std::string s = "null")
 	}
 }
 
-
-bool writeToFile( std::string& filename, const std::string& content)
-{
-    std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
-
-    if (!outFile)
-	{
-		throw std::ofstream::failure("Failed to open file");
-    }
-    outFile<< content;//<<"\n";
-
-    return true;
-}
 std::string extract_field_path(const std::string& buf, const std::string& field, const std::string& upload_store)
 {
 	std::string::size_type pos = buf.find(field);
@@ -151,12 +138,12 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 }
 
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
-void Request::writeData()
+void	Request::writeData()
 {
 	bool parsestate = false;
 	if (this->r_boundary =="void")
 	{
-		return ;
+		return;
 	}
 	else
 	{
@@ -171,7 +158,6 @@ void Request::writeData()
 				parsestate = !parsestate;
 			else if (parsestate)
 			{
-				// buf+="\n";
 				this->file.name = extract_field_path(buf, "name=\"", this->_loc.upload_store);
 				this->file.fname = extract_field_path(buf, "filename=\"", this->_loc.upload_store);
 
@@ -193,19 +179,25 @@ void Request::writeData()
 			}
 			else
 			{
-				writeToFile(this->file.name, buf+'\n');
+				std::string& filename = this->file.name;
+				const std::string& content = buf+'\n';
+				
+				std::ofstream outFile(filename.c_str(),std::ios::app);  // Creates the file if it doesn't exist
+				if (!outFile)
+				{
+					throw std::ofstream::failure("Failed to open file");
+				}
+				outFile<< content;//<<"\n";
+				// writeToFile(this->file.name, buf + \n);
 			}
 
 		}
-
 	}
 }
 // ________________POST METHOD____________________
 //PROBLEME POSSIBLE DE LOCATION
 void Request::Post()
 {
-	std::cout<<"POST | EXECUTED !!> \033[0m"<<std::endl;
-
 	//EXTRACT BOUNDARY
 	std::string::size_type pos = this->http_params.find("Content-Type")->second.find("boundary=");
     if (pos != std::string::npos)
@@ -218,11 +210,20 @@ void Request::Post()
 		this->r_boundary = "void";
 
 	//calculate data length
-	ssize_t  content_length=0;
-	if(this->http_params.find("Content-Length") != this->http_params.end())
+	ssize_t  content_length = 0;
+	if (this->http_params.find("Content-Length") != this->http_params.end())
 	{
-		content_length = atol(this->http_params.find("Content-Length")->second.c_str());
+		content_length = atol(this->http_params["Content-Length"].c_str());
+		if (content_length > 10 * 1024 * 1024) { // 10 MB limit
+			std::string res =
+				"HTTP/1.1 413 Payload Too Large\r\n"
+				"Content-Length: 0\r\n\r\n";
+			send(this->_socket, res.c_str(), res.size(), 0);
+			close(this->_socket);
+			return;
+		}
 	}
+
 
 	//EXTRACT DATA INTO THIS->R_FULL_REQUEST
 	char buffer[2048];
@@ -234,9 +235,22 @@ void Request::Post()
 			break;
 		if (ret < 0)
 		{
-			std::cerr << "\033[31m Error receiving data from client! Socket: " << this->_socket << "\033[0m" << std::endl;
-			close(this->_socket);
-			return;
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+				continue; // retry the recv
+			else {
+				std::cerr << "\033[31m [x] POST fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
+
+				std::string response =
+					"HTTP/1.1 500 Internal Server Error\r\n"
+					"Content-Type: text/plain\r\n"
+					"Content-Length: 30\r\n"
+					"\r\n"
+					"Failed to receive POST data.\n";
+
+				send(this->_socket, response.c_str(), response.size(), 0);
+				close(this->_socket);
+				return;
+			}
 		}
 		this->r_body.append(buffer, ret);
 		bytes_received += ret;
@@ -244,6 +258,14 @@ void Request::Post()
 	try
 	{
 		this->writeData();
+		std::string res =
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Length: 0\r\n"
+			"Connection: close\r\n"
+			"\r\n";
+		send(this->_socket, res.c_str(), res.size(), 0);
+
+		std::cout << "\033[32m[✓] POST request handled successfully!\033[0m" << std::endl;
 	}
 	catch(const std::ofstream::failure& e)
 	{
@@ -254,7 +276,7 @@ void Request::Post()
 
 void Request::Delete()
 {
-    std::cout << "DELETE | EXECUTED !!> Socket: " << this->_socket << std::endl;
+    std::cout << "DELETE | EXECUTED !> Socket: " << this->_socket << std::endl;
 	// make sure that delete only runs into the upload/ path
 
 
@@ -312,7 +334,7 @@ void Request::Delete()
 // ______________________GET METHOD____________________________
 void Request::Get()
 {
-	std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
+	// std::cout << "|GET EXECUTED !!| \033[0m" << std::endl;
     std::string full_path = this->_loc.root; //+ this->r_location;
     std::string file_path;
 
