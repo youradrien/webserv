@@ -137,6 +137,19 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 		return result;
 }
 
+// sanitize_filename  eviter:  ../../../etc/passwd 
+static std::string sanitize_filename(const std::string& filename) 
+{
+	std::string clean;
+	for (char c : filename) {
+		if (std::isalnum(c) || c == '.' || c == '_' || c == '-') {
+			clean += c;
+		}
+	}
+	if (clean.empty()) clean = "upload.bin";
+	return clean;
+}
+
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void	Request::writeData()
 {
@@ -172,7 +185,13 @@ void	Request::writeData()
 
 				//SKIP EMPTY LINE
 				getline(s,buf);
-				std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
+				std::string safe_name = sanitize_filename(this->file.fname);
+				std::string full_path = this->_loc.upload_store + "/" + safe_name;
+				this->file.name = full_path;
+
+				std::ofstream outFile(full_path.c_str(), std::ios::trunc);
+				// std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
+				
 				// outFile.
 				if (!outFile)
 					throw std::ofstream::failure("Failed to open file");
