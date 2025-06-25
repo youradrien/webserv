@@ -141,13 +141,14 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 static std::string sanitize_filename(const std::string& filename) 
 {
 	std::string clean;
-	for (char c : filename) {
-		if (std::isalnum(c) || c == '.' || c == '_' || c == '-') {
-			clean += c;
-		}
-	}
-	if (clean.empty()) clean = "upload.bin";
-	return clean;
+    for (size_t i = 0; i < filename.size(); ++i) {
+        char c = filename[i];
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '_' || c == '-') {
+            clean += c;
+        }
+    }
+    if (clean.empty()) clean = "upload.bin";
+    return clean;
 }
 
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
@@ -191,7 +192,7 @@ void	Request::writeData()
 
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc);
 				// std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
-				
+
 				// outFile.
 				if (!outFile)
 					throw std::ofstream::failure("Failed to open file");
