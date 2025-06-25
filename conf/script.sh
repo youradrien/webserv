@@ -1202,7 +1202,7 @@ cat << 'EOF' > ./www/deletz.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Delete Files - Webserver.cpp</title>
     <style>
         @keyframes float {
@@ -1233,49 +1233,52 @@ cat << 'EOF' > ./www/deletz.html
             animation: float 3s ease-in-out infinite;
             max-height: 90vh;
             overflow-y: auto;
+            width: 320px;
         }
 
         h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
             color: #ce93d8;
             text-shadow: 1px 1px #12005e;
         }
 
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        li {
-            margin: 0.5rem 0;
-            background-color: #6a1b9a;
-            padding: 0.75rem 1rem;
-            border-radius: 10px;
-            color: #f3e5f5;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
         form {
-            display: inline;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 0.8rem;
         }
 
         button {
-            padding: 0.4rem 0.8rem;
+            padding: 0.5rem 1rem;
             background-color: #ab47bc;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 1rem;
             cursor: pointer;
             transition: background 0.3s ease;
+            width: 100%;
         }
 
         button:hover {
             background-color: #9c27b0;
+        }
+
+        #result {
+            min-height: 1.5rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            color: #f3e5f5;
+            text-shadow: 1px 1px #12005e;
         }
 
         a {
@@ -1296,27 +1299,75 @@ cat << 'EOF' > ./www/deletz.html
 
         .emoji {
             font-size: 2.5rem;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Uploaded Files</h1>
-        <ul>
-            <!--REPLACE_WITH_FILE_LIST-->
-            <!-- Example:
-            <li>
-                file.txt
-                <form action="/delete-upload/file.txt" method="post" onsubmit="return confirm('Delete this file?');">
-                    <button type="submit">🗑️ Delete</button>
-                </form>
-            </li>
-            -->
-        </ul>
+        <h1>Delete a File</h1>
+        <form id="deleteForm">
+            <input 
+                type="text" 
+                id="filename" 
+                name="filename" 
+                placeholder="Enter filename to delete" 
+                required 
+                autocomplete="off"
+            />
+            <button type="submit">Delete File</button>
+        </form>
+        <div id="result"></div>
         <a href="/">← Return Home</a>
         <div class="emoji">📁🗑️💜</div>
     </div>
+
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const filename = document.getElementById('filename').value.trim();
+
+            if (filename.length === 0) {
+                alert('Please enter a filename');
+                return;
+            }
+
+            if (filename.includes('/') || filename.includes('\\')) {
+                alert('Invalid filename: slashes are not allowed');
+                return;
+            }
+
+            fetch('/delete-upload', {
+                method: 'DELETE',
+                headers: {
+                    'X-Filename': filename
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Handle different HTTP errors explicitly
+                    if (response.status === 404) {
+                        throw new Error('File not found');
+                    } else if (response.status === 400) {
+                        throw new Error('Bad request');
+                    } else if (response.status === 500) {
+                        throw new Error('Server error');
+                    } else {
+                        throw new Error('Unexpected error: ' + response.status);
+                    }
+                }
+                return response.text();
+            })
+            .then(text => {
+                document.getElementById('result').textContent = text;
+            })
+            .catch(err => {
+                // Show the error message nicely on the page instead of console only
+                document.getElementById('result').textContent = err.message;
+                console.error(err);
+            });
+        });
+    </script>
 </body>
 </html>
 EOF

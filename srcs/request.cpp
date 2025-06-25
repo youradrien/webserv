@@ -118,7 +118,7 @@ void Request::execute(std::string s = "null")
 	}
 }
 
-std::string extract_field_path(const std::string& buf, const std::string& field, const std::string& upload_store)
+std::string extract_field_path(const std::string& buf, const std::string& field)
 {
 	std::string::size_type pos = buf.find(field);
 	if (pos == std::string::npos)
@@ -129,7 +129,7 @@ std::string extract_field_path(const std::string& buf, const std::string& field,
 	if (epos == std::string::npos)
 		return "";
 
-	std::string result = upload_store + '/';
+	std::string result = "/";
 	if (!result.empty() && result[0] == '/')
 		result.erase(result.begin());
 
@@ -172,8 +172,7 @@ void	Request::writeData()
 				parsestate = !parsestate;
 			else if (parsestate)
 			{
-				this->file.name = extract_field_path(buf, "name=\"", this->_loc.upload_store);
-				this->file.fname = extract_field_path(buf, "filename=\"", this->_loc.upload_store);
+				this->file.fname = extract_field_path(buf, "filename=\"");
 
 				//GET CONTENTYPE LINE
 				getline(s,buf);
@@ -199,6 +198,7 @@ void	Request::writeData()
 			}
 			else
 			{
+				
 				std::string& filename = this->file.name;
 				const std::string& content = buf+'\n';
 				
@@ -258,7 +258,7 @@ void Request::Post()
 			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
 				continue; // retry the recv
 			else {
-				std::cerr << "\033[31m [x] POST fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
+				std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
 
 				std::string response =
 					"HTTP/1.1 500 Internal Server Error\r\n"
@@ -293,43 +293,82 @@ void Request::Post()
 	}
 }
 
+static std::string trim(const std::string& str)
+{
+    const std::string whitespace = " \t\n\r";
+    const size_t start = str.find_first_not_of(whitespace);
+    if (start == std::string::npos) return "";
+    const size_t end = str.find_last_not_of(whitespace);
+    return str.substr(start, end - start + 1);
+}
 
 void Request::Delete()
 {
-    std::cout << "DELETE | EXECUTED !> Socket: " << this->_socket << std::endl;
 	// make sure that delete only runs into the upload/ path
-
-
-    // e.g., "/uploads/file.txt" or "/index.html"
-	std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
-    std::string path = this->_loc.path;  // e.g. "/uploads/myfle.txt"
-
-    // prevent path traversal attacks (../)
-    // could do some sanitization here:
-    if (path.find("..") != std::string::npos)
-    {
-        // return some error indicator, or sanitize path
+	char buf[PATH_MAX];
+	std::string f_path;
+	if (this->http_params.find("X-Filename") != this->http_params.end() &&
+		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))
+	{
+	    struct stat buffer;
+		const std::string &full_path = std::string(buf) 
+				// + this->_loc.root.substr(1)
+				+ this->_loc.upload_store.substr(1)
+				+ "/"
+				+ trim(this->http_params["X-Filename"]);
+		if(stat(full_path.c_str(), &buffer) != 0)
+		{
+			std::string response =
+				"HTTP/1.1 404 Not Found\r\n"
+				"Content-Length: 0\r\n"
+				"Connection: close\r\n\r\n";
+			std::cout << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
+			send(this->_socket, response.c_str(), response.size(), 0);
+			return;
+		}else{
+			std::cout << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
+			f_path = (full_path);
+		}
+	}else
+	{
 		std::string response = 
-            "HTTP/1.1 404 Not Found\r\n"
+            "HTTP/1.1 400 Bad Request\r\n"
             "Content-Length: 0\r\n"
             "Connection: close\r\n\r\n";
         send(this->_socket, response.c_str(), response.size(), 0);
     	close(this->_socket);
-		return;
+		return;	
 	}
+    // e.g., "/uploads/file.txt" or "/index.html"
+	// std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
+    // std::string path = this->_loc.upload_store;  // e.g. "/uploads/myfle.txt"
 
-    // make sure root ends with slash
-	if (!root.empty() && root[root.size() - 1] != '/') 
-       root += "/";
+    // // prevent path traversal attacks (../)
+    // // could do some sanitization here:
+    // if (path.find("..") != std::string::npos)
+    // {
+    //     // return some error indicator, or sanitize path
+	// 	std::string response = 
+    //         "HTTP/1.1 404 Not Found\r\n"
+    //         "Content-Length: 0\r\n"
+    //         "Connection: close\r\n\r\n";
+    //     send(this->_socket, response.c_str(), response.size(), 0);
+    // 	close(this->_socket);
+	// 	return;
+	// }
 
-    // rmv leading slash  path ->avoid double slash
-    if (!path.empty() && path[0] == '/')
-        path.erase(0, 1);
+    // // force root to nd w a slash
+	// if (!root.empty() && root[root.size() - 1] != '/') 
+    //    root += "/";
 
-    std::string full_path = root + path; // "/var/www/your_site/uploads/myfile.txt"
+    // // rmv leading slash path to avoid dbl slash
+    // if (!path.empty() && path[0] == '/')
+    //     path.erase(0, 1);
+
+    // std::string full_path = root + path; // "/var/www/uploads/myfile.txt"
 
     // Try to delete the file
-    if (std::remove(full_path.c_str()) == 0)
+    if (std::remove(f_path.c_str()) == 0)
     {
         std::string response = 
             "HTTP/1.1 200 OK\r\n"
@@ -340,7 +379,7 @@ void Request::Delete()
     }
     else
     {
-        // If file deletion failed, send 404 or 403
+        // file deletion failed, send 404 or 403
         std::string response = 
             "HTTP/1.1 404 Not Found\r\n"
             "Content-Length: 0\r\n"

@@ -1,24 +1,21 @@
-# Variables
 EXEC    = WEBSERV
 SRC     = srcs/webserv.cpp srcs/conf_parser.cpp srcs/main.cpp srcs/request.cpp
 OBJ     = $(SRC:.cpp=.o)
 CC      = c++
 FLAGS   = -Wall -Wextra -std=c++98
 
-# Default target
 all: $(EXEC)
 	echo "Running ./conf/script.sh..."
 	./conf/script.sh
 
-# Link the object files to create the executable
+# link the object files to create the executable
 $(EXEC): $(OBJ)
 	$(CC) $(FLAGS) $(OBJ) -I./srcs/ -o $(EXEC)
 
-# Compile .cpp to .o
+# compile .cpp to .o
 %.o: %.cpp
 	$(CC) $(FLAGS) -I./srcs/ -c $< -o $@
 
-# Clean object files
 clean:
 	rm -f $(OBJ)
 
@@ -31,5 +28,4 @@ fclean: clean
 	rm -rf ./srcs/build
 	rm -rf ./public
 
-# Rebuild everything
 re: fclean all
