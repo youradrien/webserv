@@ -191,7 +191,6 @@ cat << 'EOF' > ./www/index.html
     </div>
     <h5>all rights reserved. 
         <a href="https://github.com/youradrien">le j</a>
-        <a href="https://github.com/gauchau">le g</a>
     </h5>
 </body>
 </html>

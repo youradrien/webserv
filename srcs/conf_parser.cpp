@@ -45,15 +45,27 @@ static std::vector<std::string> split_string(const std::string& input)
 
 bool Webserv::parseConfigFile(const std::string& filename)
 {
-     if (filename.empty())
+    if (filename.empty())
     {
         std::cerr << "empty .conf file!" << std::endl;
+        return false;
+    }
+    const std::string ext = ".conf";
+    if (filename.size() < ext.size() || filename.compare(filename.size() - ext.size(), ext.size(), ext) != 0)
+    {
+        std::cerr << "filename must end w \".conf\"!" << std::endl;
+        return false;
+    }
+    size_t firstPos = filename.find(ext), lastPos = filename.rfind(ext);
+    if (firstPos != lastPos)
+    {
+        std::cerr << "not today bro -> \".conf\" only once..." << std::endl;
         return false;
     }
     std::ifstream file(filename.c_str());
     if (!file.is_open())
     {
-        std::cerr << "Could not open config file!" << std::endl;
+        std::cerr << "Could not open/find this .conf file." << std::endl;
         return false;
     }
 

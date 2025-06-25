@@ -40,7 +40,7 @@
 
 Webserv::Webserv(void)
 {
-    std:: cout << "WEBSERVER CAME !"<< std::endl;
+    // std:: cout << "WEBSERVER CAME !"<< std::endl;
 }
 
 Webserv::~Webserv()
