@@ -129,6 +129,7 @@
     "locale": "cpp",
     "mutex": "cpp",
     "variant": "cpp",
-    "complex": "cpp"
+    "complex": "cpp",
+    "filesystem": "cpp"
   }
 }
