@@ -12,7 +12,66 @@ static std::string readFile(const std::string& file_path)
     std::stringstream buffer;
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
-} 
+}
+
+static std::string extract_field_path(const std::string& buf, const std::string& field)
+{
+	std::string::size_type pos = buf.find(field);
+	if (pos == std::string::npos)
+		return "";
+
+	pos += field.length();
+	std::string::size_type epos = buf.find("\"", pos);
+	if (epos == std::string::npos)
+		return "";
+
+	std::string result = "/";
+	if (!result.empty() && result[0] == '/')
+		result.erase(result.begin());
+
+	result += buf.substr(pos, epos - pos);
+		return result;
+}
+
+// sanitize_filename  eviter:  ../../../etc/passwd 
+static std::string sanitize_filename(const std::string& filename) 
+{
+	std::string clean;
+    for (size_t i = 0; i < filename.size(); ++i) {
+        char c = filename[i];
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '_' || c == '-') {
+            clean += c;
+        }
+    }
+    if (clean.empty()) clean = "upload.bin";
+    return clean;
+}
+
+
+static std::string findfrstWExtension(const std::string& dirPath, const std::string& ext)
+{
+    DIR* dir = opendir(dirPath.c_str());
+    if (!dir) {
+        std::cerr << "Failed to open directory: " << dirPath << std::endl;
+        return "";
+    }
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string filename(entry->d_name);
+        // skip "." and ".."
+        if (filename == "." || filename == "..")
+            continue;
+        if (filename.size() >= ext.size() &&
+            filename.compare(filename.size() - ext.size(), ext.size(), ext) == 0)
+        {
+            closedir(dir);
+            return filename;
+        }
+    }
+    closedir(dir);
+    return "";
+}
+
 Request::Request(char *raw, const ServerConfig &servr, int socket)
     : _server(servr), _socket(socket)
 {
@@ -118,39 +177,6 @@ void Request::execute(std::string s = "null")
 	}
 }
 
-std::string extract_field_path(const std::string& buf, const std::string& field)
-{
-	std::string::size_type pos = buf.find(field);
-	if (pos == std::string::npos)
-		return "";
-
-	pos += field.length();
-	std::string::size_type epos = buf.find("\"", pos);
-	if (epos == std::string::npos)
-		return "";
-
-	std::string result = "/";
-	if (!result.empty() && result[0] == '/')
-		result.erase(result.begin());
-
-	result += buf.substr(pos, epos - pos);
-		return result;
-}
-
-// sanitize_filename  eviter:  ../../../etc/passwd 
-static std::string sanitize_filename(const std::string& filename) 
-{
-	std::string clean;
-    for (size_t i = 0; i < filename.size(); ++i) {
-        char c = filename[i];
-        if (std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '_' || c == '-') {
-            clean += c;
-        }
-    }
-    if (clean.empty()) clean = "upload.bin";
-    return clean;
-}
-
 //PROBLEM: ECRIT UN \n DE TROP A LA FIN DU FICHIER
 void	Request::writeData()
 {
@@ -190,7 +216,6 @@ void	Request::writeData()
 				this->file.name = full_path;
 
 				std::ofstream outFile(full_path.c_str(), std::ios::trunc);
-				// std::ofstream outFile(this->file.name.c_str(),std::ios::trunc);
 
 				// outFile.
 				if (!outFile)
@@ -302,92 +327,76 @@ static std::string trim(const std::string& str)
     return str.substr(start, end - start + 1);
 }
 
-void Request::Delete()
+// std::map<string, string> -> char*[] envp
+static char** buildEnvp(std::map<std::string, std::string>& env)
 {
-	// make sure that delete only runs into the upload/ path
-	char buf[PATH_MAX];
-	std::string f_path;
-	if (this->http_params.find("X-Filename") != this->http_params.end() &&
-		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))
+    char** envp = new char*[env.size() + 1];
+    int i = 0;
+    for (std::map<std::string, std::string>::iterator it = env.begin(); it != env.end(); ++it)
 	{
-	    struct stat buffer;
-		const std::string &full_path = std::string(buf) 
-				// + this->_loc.root.substr(1)
-				+ this->_loc.upload_store.substr(1)
-				+ "/"
-				+ trim(this->http_params["X-Filename"]);
-		if(stat(full_path.c_str(), &buffer) != 0)
-		{
-			std::string response =
-				"HTTP/1.1 404 Not Found\r\n"
-				"Content-Length: 0\r\n"
-				"Connection: close\r\n\r\n";
-			std::cout << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
-			send(this->_socket, response.c_str(), response.size(), 0);
-			return;
-		}else{
-			std::cout << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
-			f_path = (full_path);
-		}
-	}else
-	{
-		std::string response = 
-            "HTTP/1.1 400 Bad Request\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
-    	close(this->_socket);
-		return;	
-	}
-    // e.g., "/uploads/file.txt" or "/index.html"
-	// std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
-    // std::string path = this->_loc.upload_store;  // e.g. "/uploads/myfle.txt"
-
-    // // prevent path traversal attacks (../)
-    // // could do some sanitization here:
-    // if (path.find("..") != std::string::npos)
-    // {
-    //     // return some error indicator, or sanitize path
-	// 	std::string response = 
-    //         "HTTP/1.1 404 Not Found\r\n"
-    //         "Content-Length: 0\r\n"
-    //         "Connection: close\r\n\r\n";
-    //     send(this->_socket, response.c_str(), response.size(), 0);
-    // 	close(this->_socket);
-	// 	return;
-	// }
-
-    // // force root to nd w a slash
-	// if (!root.empty() && root[root.size() - 1] != '/') 
-    //    root += "/";
-
-    // // rmv leading slash path to avoid dbl slash
-    // if (!path.empty() && path[0] == '/')
-    //     path.erase(0, 1);
-
-    // std::string full_path = root + path; // "/var/www/uploads/myfile.txt"
-
-    // Try to delete the file
-    if (std::remove(f_path.c_str()) == 0)
-    {
-        std::string response = 
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
-		return;
+        std::string entry = it->first + "=" + it->second;
+        envp[i] = new char[entry.size() + 1];
+        std::strcpy(envp[i], entry.c_str());
+        i++;
     }
-    else
-    {
-        // file deletion failed, send 404 or 403
-        std::string response = 
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Length: 0\r\n"
-            "Connection: close\r\n\r\n";
-        send(this->_socket, response.c_str(), response.size(), 0);
-    }
-    close(this->_socket);
+    envp[i] = NULL;
+    return envp;
 }
+
+// - exec CGI script in a fork()
+// - returns CGI stdout in a std::str
+static std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
+{
+    int pipe_out[2];
+    int pipe_in[2];
+
+    if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
+        perror("pipe");
+        return "status: 500\r\n\r\nInternal Server Error";
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return "status: 500\r\n\r\nfork Failed";
+    }
+	std::cout << "running " << scriptPath << "..." << std::endl;
+	// c
+    if (pid == 0)
+	{
+        // Child
+        dup2(pipe_in[0], STDIN_FILENO);	dup2(pipe_out[1], STDOUT_FILENO);
+        close(pipe_in[1]);	close(pipe_out[0]);
+
+        char* argv[] = { (char*)scriptPath.c_str(), NULL };
+        char** envp = buildEnvp(env);
+
+        execve(scriptPath.c_str(), argv, envp);
+        perror("execve");
+        exit(1);
+    }
+	// p
+	else
+	{
+        close(pipe_in[0]);
+        close(pipe_out[1]);
+        if (method == "POST" && !body.empty())
+            write(pipe_in[1], body.c_str(), body.size());
+        close(pipe_in[1]);
+
+        char buffer[4096];
+        std::string output;
+        ssize_t r;
+        while ((r = read(pipe_out[0], buffer, sizeof(buffer))) > 0)
+            output.append(buffer, r);
+
+        close(pipe_out[0]);
+        int status;
+        waitpid(pid, &status, 0);
+        return output;
+    }
+}
+
 
 
 // ______________________GET METHOD____________________________
@@ -398,11 +407,11 @@ void Request::Get()
     std::string file_path;
 
     struct stat st;
-    // std::cout << full_path << std::endl;
 
     if (stat(full_path.c_str(), &st) == 0) // 🛠️ REQUIRED!
     {
-        if (S_ISDIR(st.st_mode) && !this->_loc.index.empty())
+        if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() || 
+			((&(this->_loc.cgi_extension) != nullptr && !this->_loc.cgi_extension.empty())) ))
         {
             file_path = full_path + "/" + this->_loc.index;
         }
@@ -420,7 +429,6 @@ void Request::Get()
     }
 
 
-	// std::cout << file_path << std::endl;
     //  autoindex
     if (file_path == "[AUTOINDEX]" )
     {
@@ -483,23 +491,6 @@ void Request::Get()
 	// 403 forbidden
 	else if (file_path == "[403]")
 	{
-		/*
-		std::string path_403 = "./www/default/403.html";
-		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
-		it = this->_server.error_pages.begin();
-		for (; it != this->_server.error_pages.end(); ++it)
-		{
-			if (it->first == 403 || it->first == 404)
-			{
-				std::cout << "Found error page for " << it->first << ": " << it->second << std::endl;
-				path_403 = it->second;
-				break;
-			}
-		}
-		const std::string& 
-				body = readFile(path_403),
-				contentType = "text/html";
-		*/
 		std::string path_403 = "./www/default/403.html";
 		std::vector<std::pair<unsigned int, std::string> >::const_iterator it;
 		it = this->_server.error_pages.begin();
@@ -528,26 +519,165 @@ void Request::Get()
 	{
 		// todo
 		// handle redirection
-		
 	}
 	else
 	{
-		const std::string& 
-			body = readFile(file_path),
-			contentType = "text/html";
+		// cgi or default
+		if(&(this->_loc.cgi_extension) == nullptr || this->_loc.cgi_extension.empty())
+		{
+			const std::string& 
+				body = readFile(file_path),
+				contentType = "text/html";
 
-		std::stringstream response;
-		response << "HTTP/1.1 200 OK\r\n";
-		response << "Content-Type: " << contentType << "\r\n";
-		response << "Content-Length: " << body.size() << "\r\n";
-		response << "Connection: close\r\n";
-		response << "\r\n"; // End of headers
+			std::stringstream response;
+			response << "HTTP/1.1 200 OK\r\n";
+			response << "Content-Type: " << contentType << "\r\n";
+			response << "Content-Length: " << body.size() << "\r\n";
+			response << "Connection: close\r\n";
+			response << "\r\n"; // End of headers
 
-		response << body;
-		this->_ReqContent = ( response.str());
+			response << body;
+			this->_ReqContent = ( response.str());
+		}else
+		{
+			std::string script_path;
+			char cwd[PATH_MAX];
+			if (getcwd(cwd, sizeof(cwd)) == NULL) {
+				std::cerr << "getcwd failed" << std::endl;
+				return ;
+			}
+			script_path = std::string(cwd);
+			script_path += "/cgi-bin/";
+			script_path += findfrstWExtension(script_path, this->_loc.cgi_extension);
+			
+
+			std::cout << script_path << std::endl;
+			std::map<std::string, std::string> env;
+			env["REQUEST_METHOD"] = this->r_method;
+			std::stringstream ss; ss << this->r_body.size();
+			env["CONTENT_LENGTH"] = ss.str();
+			env["SCRIPT_FILENAME"] = script_path;
+			// env["QUERY_STRING"] = this->r_query;
+			env["CONTENT_TYPE"] = this->http_params["Content-Type"];
+			env["GATEWAY_INTERFACE"] = "CGI/1.1";
+			env["SERVER_PROTOCOL"] = "HTTP/1.1";
+			env["REDIRECT_STATUS"] = "200";
+
+
+			std::string cgi_output = executeCGI(script_path, this->r_method, this->r_body, env);
+			std::string contentType = "text/plain";
+			std::string body;
+
+			// extract content-type from CGI output
+			std::string::size_type header_end = cgi_output.find("\r\n\r\n");
+			if (header_end == std::string::npos)
+				header_end = cgi_output.find("\n\n");
+			if (header_end != std::string::npos)
+			{
+				std::string headers = cgi_output.substr(0, header_end);
+				body = cgi_output.substr(header_end + 4); // skip "\r\n\r\n" && "\n\n"
+				std::istringstream headerStream(headers);
+				std::string line;
+				while (std::getline(headerStream, line))
+				{
+					if (line.find("Content-Type:") != std::string::npos)
+					{
+						contentType = line.substr(line.find(":") + 1);
+						while (contentType[0] == ' ') contentType.erase(0, 1); // trim spaces
+					}
+				}
+			}else
+				body = cgi_output; // no headers? treat all as body
+			std::stringstream response;
+			response << "HTTP/1.1 200 OK\r\n";
+			response << "Content-Type: " << contentType << "\r\n";
+			response << "Content-Length: " << body.size() << "\r\n";
+			response << "Connection: close\r\n";
+			response << "\r\n";
+			response << body;
+			std::cout << response.str() << std::endl;
+			this->_ReqContent = response.str();
+		}
 	}
 	// std::cout << "\033[1;48;5;236m"<< this->_ReqContent << "\033[0m"<< std::endl;
 }
+
+
+
+
+void Request::Delete()
+{
+	// make sure that delete only runs into the upload/ path
+	char buf[PATH_MAX];
+	std::string f_path;
+	if (this->http_params.find("X-Filename") != this->http_params.end() &&
+		this->http_params["X-Filename"].length() != 0 && getcwd(buf, sizeof(buf)))
+	{
+	    struct stat buffer;
+		const std::string &full_path = std::string(buf) 
+				// + this->_loc.root.substr(1)
+				+ this->_loc.upload_store.substr(1)
+				+ "/"
+				+ trim(this->http_params["X-Filename"]);
+		if(stat(full_path.c_str(), &buffer) != 0)
+		{
+			std::string response =
+				"HTTP/1.1 404 Not Found\r\n"
+				"Content-Length: 0\r\n"
+				"Connection: close\r\n\r\n";
+			std::cout << "\033[31m[not found]: " << full_path << "\033[0m"<< std::endl;
+			send(this->_socket, response.c_str(), response.size(), 0);
+			return;
+		}else{
+			std::cout << "\033[32m[successfully found]: " << full_path << "\033[0m"<< std::endl;
+			f_path = (full_path);
+		}
+	}else
+	{
+		std::string response = 
+            "HTTP/1.1 400 Bad Request\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+    	close(this->_socket);
+		return;	
+	}
+    // e.g., "/uploads/file.txt" or "/index.html"
+	// std::string root = this->_loc.root;   // e.g. "/var/www/ur_site"
+    // std::string path = this->_loc.upload_store;  // e.g. "/uploads/myfle.txt"
+
+    // // force root to nd w a slash
+	// if (!root.empty() && root[root.size() - 1] != '/') 
+    //    root += "/";
+
+    // // rmv leading slash path to avoid dbl slash
+    // if (!path.empty() && path[0] == '/')
+    //     path.erase(0, 1);
+
+    // std::string full_path = root + path; // "/var/www/uploads/myfile.txt"
+
+    // Try to delete the file
+    if (std::remove(f_path.c_str()) == 0)
+    {
+        std::string response = 
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+		return;
+    }
+    else
+    {
+        // file deletion failed, send 404 or 403
+        std::string response = 
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Length: 0\r\n"
+            "Connection: close\r\n\r\n";
+        send(this->_socket, response.c_str(), response.size(), 0);
+    }
+    close(this->_socket);
+}
+
 
 std::string Request::_get_ReqContent()
 {

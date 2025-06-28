@@ -173,8 +173,6 @@ static bool handle_client(int client_socket, const ServerConfig &serv)
 
 
 
-
-
 void Webserv::start(void)
 {
     std::vector<pollfd> poll_fds;
