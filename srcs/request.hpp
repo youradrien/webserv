@@ -31,20 +31,24 @@ struct file_id
 class Request
 {
     public:
-      Request(char* buffer, const ServerConfig &serv, int socket);
+      Request(char* buffer, const ServerConfig &serv, int socket, ssize_t bytes_rec);
       ~Request();
       void check_allowed_methods(const ServerConfig &serv);
       void execute(std::string s);
-      std::string _get_ReqContent();
 
+      // getters
+      std::string _get_content();
+      std::string _get_header(const std::string &key) const;
+      std::string _get_httpversion() const;
     private:
         const ServerConfig &_server;
 		    int _socket;
         std::map<std::string,std::string> http_params;
 		    std::string r_method, r_location,
-                    r_version, r_boundary, 
+                    r_version, r_boundary,
                     r_body, r_header;
         LocationConfig _loc;
+        ssize_t _bytes_rec, _contlen, ret;
         file_id file;
         bool authorized;
         void Post();

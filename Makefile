@@ -1,8 +1,8 @@
 EXEC    = WEBSERV
-SRC     = srcs/webserv.cpp srcs/conf_parser.cpp srcs/main.cpp srcs/request.cpp
+SRC     = srcs/webserv.cpp srcs/conf_parser.cpp srcs/main.cpp srcs/request.cpp srcs/http_form.cpp
 OBJ     = $(SRC:.cpp=.o)
 CC      = c++
-FLAGS   = -Wall -Wextra -std=c++98
+FLAGS   = -Wall -Wextra -std=c++98 -g
 
 all: $(EXEC)
 	echo "Running ./conf/script.sh..."

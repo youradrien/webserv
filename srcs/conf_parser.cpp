@@ -182,39 +182,39 @@ bool Webserv::parseConfigFile(const std::string& filename)
     
     file.close();
     std::cout << "\033[92m ==== SUCCESSFULLY PARSED " << servers.size() << " SERVERS ! ==== \033[0m" << std::endl;
-    if(true == false)
-    {
-        for (size_t i = 0; i < servers.size(); ++i)
-        {
-            // if client_max_body_size not precised
-            if(!servers[i].client_max_body_size)
-                servers[i].client_max_body_size = parseSize("10M");
+    // if(true == false)
+    // {
+    //     for (size_t i = 0; i < servers.size(); ++i)
+    //     {
+    //         // if client_max_body_size not precised
+    //         if(!servers[i].client_max_body_size)
+    //             servers[i].client_max_body_size = parseSize("10M");
 
-            std::cout << "\033[1;96m__________ [Server " << i << "] ________ \n - host: " << servers[i].host << "]\n - port: " << servers[i].port <<"]\033[0m" << std::endl;
-            std::cout << "\033[1;96m - server_name: '" << servers[i].server_name << "' \n"; 
-            std::cout << " - client_max_body_size: " << servers[i].client_max_body_size << " (bytes) \n";
-            std::cout << " - error_pages: \n";
-            for (size_t a = 0; a < servers[i].error_pages.size(); ++a) 
-                    std::cout << "\t [ " << servers[i].error_pages[a].first << ", " << servers[i].error_pages[a].second << "]" << std::endl;
-            std::cout << "\033[0m" << std::endl;
-            for (size_t j = 0; j < servers[i].locations.size(); ++j) 
-            {
-                std::cout << " \033[94m     (Location/Route): '" << servers[i].locations[j].path << "'\n"
-                        << "\t -root: " << servers[i].locations[j].root << "\n"
-                        << "\t -index: " << servers[i].locations[j].index << "\n"
-                        << "\t -autoindex: " << (servers[i].locations[j].autoindex ? "on" : "off") << "\n"
-                        << "\t -methods: ";
-                        if(!servers[i].locations[j].allowed_methods.size())
-                            std::cout << "\n";
-                        for (size_t k = 0; k < servers[i].locations[j].allowed_methods.size(); ++k)
-                            std::cout << servers[i].locations[j].allowed_methods[k] << std::endl;
-                        std::cout << "\t -cgi_path: " << servers[i].locations[j].cgi_path << "\n"
-                        << "\t -cgi_extension: " << servers[i].locations[j].cgi_extension << "\n"
-                        << "\033[0m" 
-                        << std::endl;
+    //         std::cout << "\033[1;96m__________ [Server " << i << "] ________ \n - host: " << servers[i].host << "]\n - port: " << servers[i].port <<"]\033[0m" << std::endl;
+    //         std::cout << "\033[1;96m - server_name: '" << servers[i].server_name << "' \n"; 
+    //         std::cout << " - client_max_body_size: " << servers[i].client_max_body_size << " (bytes) \n";
+    //         std::cout << " - error_pages: \n";
+    //         for (size_t a = 0; a < servers[i].error_pages.size(); ++a) 
+    //                 std::cout << "\t [ " << servers[i].error_pages[a].first << ", " << servers[i].error_pages[a].second << "]" << std::endl;
+    //         std::cout << "\033[0m" << std::endl;
+    //         for (size_t j = 0; j < servers[i].locations.size(); ++j) 
+    //         {
+    //             std::cout << " \033[94m     (Location/Route): '" << servers[i].locations[j].path << "'\n"
+    //                     << "\t -root: " << servers[i].locations[j].root << "\n"
+    //                     << "\t -index: " << servers[i].locations[j].index << "\n"
+    //                     << "\t -autoindex: " << (servers[i].locations[j].autoindex ? "on" : "off") << "\n"
+    //                     << "\t -methods: ";
+    //                     if(!servers[i].locations[j].allowed_methods.size())
+    //                         std::cout << "\n";
+    //                     for (size_t k = 0; k < servers[i].locations[j].allowed_methods.size(); ++k)
+    //                         std::cout << servers[i].locations[j].allowed_methods[k] << std::endl;
+    //                     std::cout << "\t -cgi_path: " << servers[i].locations[j].cgi_path << "\n"
+    //                     << "\t -cgi_extension: " << servers[i].locations[j].cgi_extension << "\n"
+    //                     << "\033[0m" 
+    //                     << std::endl;
 
-            }
-        }
-    }
+    //         }
+    //     }
+    // }
     return true;
 }
