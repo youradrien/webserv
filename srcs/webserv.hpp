@@ -24,7 +24,6 @@
 #include <fcntl.h>
 #include <set>
 #include <sys/wait.h>
-#include <string>
 #define PORT 8080
 #define BACKLOG 10
 #define MAX_EVENTS 10
@@ -60,6 +59,7 @@ struct LocationConfig
         cgi_extension,
         cgi_path,
         index,
+        redirection,
         upload_store;
     std::vector<std::string>
         allowed_methods;
@@ -87,13 +87,13 @@ struct ServerConfig
         locations;
     std::vector<std::pair<unsigned int, std::string> >
         error_pages;
+    std::map<std::string,int> user_socket;
 };
 
 class Webserv
 {
     private:
         std::vector<ServerConfig> servers;
-        std::map<int, std::string> client_buffers;
     public:
         Webserv(void);
         ~Webserv();

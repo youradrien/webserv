@@ -1,5 +1,5 @@
 #ifndef UTILS_HPP
-#define UTILS_HPP
+# define UTILS_HPP
 
 #include <iostream>
 #include "request.hpp"
@@ -15,7 +15,6 @@ inline std::string readFile(const std::string& file_path)
     buffer << file.rdbuf();  // Read entire file contents into buffer
     return buffer.str();     // Return as a std::string
 }
-
 
 inline std::string extract_field_path(const std::string& buf, const std::string& field)
 {
@@ -35,7 +34,6 @@ inline std::string extract_field_path(const std::string& buf, const std::string&
 	result += buf.substr(pos, epos - pos);
 		return result;
 }
-
 
 // sanitize_filename  eviter:  ../../../etc/passwd
 inline std::string sanitize_filename(const std::string& filename)
@@ -79,16 +77,12 @@ inline std::string findfrstWExtension(const std::string& dirPath, const std::str
 
 inline std::string trim(const std::string& str)
 {
-    const std::string 
-        whitespace = " \t\n\r";
-    const size_t 
-        start = str.find_first_not_of(whitespace);
-    if (start == std::string::npos)
-        return "";
+    const std::string whitespace = " \t\n\r";
+    const size_t start = str.find_first_not_of(whitespace);
+    if (start == std::string::npos) return "";
     const size_t end = str.find_last_not_of(whitespace);
     return str.substr(start, end - start + 1);
 }
-
 
 // std::map<string, string> -> char*[] envp
 inline char** buildEnvp(std::map<std::string, std::string>& env)
@@ -105,10 +99,57 @@ inline char** buildEnvp(std::map<std::string, std::string>& env)
     envp[i] = NULL;
     return envp;
 }
+inline bool handle_client(int client_socket,  ServerConfig &serv)
+{
+    char buffer[2048];
+    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+    // std::cerr<<"BUFFER:\n"<<buffer<<"\n|ENDOFBUFFER"<<std::endl;
 
+    if (bytes_received < 0)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
+            return false;
+        }
+        std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
+        return true; // done with this socket (error, cleanup)
+    }
+    else if (bytes_received == 0)
+    {
+        std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
+        return true;
+    }
 
-inline std::string executeCGI(const std::string& scriptPath, const std::string& method, 
-    const std::string& body, std::map<std::string, std::string> env)
+    // log  received HTTP request
+    Request R(buffer, serv, client_socket, bytes_received);
+
+    std::string response = R._get_ReqContent();
+    ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
+    if (sent < 0)
+    {
+        std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
+    }
+    if (!R.keepalive)
+    {
+        return true;
+    }
+    return false;
+}
+
+// template <typename K, typename V>
+// bool contientValeur(const std::map<K, V>& maMap, const V& valeurRecherchee) {
+//     typename std::map<K, V>::const_iterator it;
+//     for (it = maMap.begin(); it != maMap.end(); ++it) {
+//         if (it->second == valeurRecherchee) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+// - exec CGI script in a fork()
+// - returns CGI stdout in a std::str
+inline std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
 {
     int pipe_out[2];
     int pipe_in[2];
@@ -127,6 +168,7 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
 	// c
     if (pid == 0)
 	{
+        // Child
         dup2(pipe_in[0], STDIN_FILENO);	dup2(pipe_out[1], STDOUT_FILENO);
         close(pipe_in[1]);	close(pipe_out[0]);
 
@@ -157,58 +199,6 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
         waitpid(pid, &status, 0);
         return output;
     }
-}
-
-
-
-
-inline bool handle_client(int client_socket, const ServerConfig &serv, std::map<int, std::string> &client_buffers)
-{
-    char buffer[2048];
-    ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-    if (bytes_received < 0)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return false;
-        std::cerr << "\033[31m[x] recv() failed: " << strerror(errno) << "\033[0m\n";
-        close(client_socket);
-        client_buffers.erase(client_socket);
-        return true;
-    }
-    else if (bytes_received == 0)
-    {
-        // std::cerr << "\033[33m[~] client disconnected: " << client_socket << "\033[0m\n";
-        close(client_socket);
-        client_buffers.erase(client_socket);
-        return true;
-    }
-
-
-    client_buffers[client_socket].append(buffer, bytes_received);
-
-    // http req -> (e.g., ends with "\r\n\r\n")
-    std::string& full_buf = client_buffers[client_socket];
-    if (full_buf.find("\r\n\r\n") == std::string::npos)
-        return false;
-    std::vector<char>
-        v_buffer(full_buf.begin(), full_buf.end());
-        v_buffer.push_back('\0');
-    Request R(&v_buffer[0], serv, client_socket, full_buf.size());
-
-    std::string response = R._get_content();
-    if (send(client_socket, response.c_str(), response.size(), 0) < 0)
-        std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
-
-    if (R._get_header("Connection") == "close" || R._get_httpversion() == "HTTP/1.0")
-    {
-        close(client_socket);
-        client_buffers.erase(client_socket);
-        return true; // done
-    }
-
-    // If keep-alive, clear buffer and wait for more
-    client_buffers[client_socket].clear();
-    return false;
 }
 
 

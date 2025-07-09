@@ -1,5 +1,5 @@
-#ifndef HTTP_FORM_HPP
-# define HTTP_FORM_HPP
+#ifndef HTTPFORMS_HPP
+# define HTTPFORMS_HPP
 
 # include <iostream>
 # include <string>
@@ -30,9 +30,9 @@ class HttpForms
 {
 	public:
 		// Constructors
-		HttpForms(int socket,int code);
-		HttpForms(int socket,int code, std::string ctype, std::string body);
-		HttpForms(int socket,int code, std::string ctype, std::string body, std::string &res);
+		HttpForms(int socket,int code, bool keepalive);
+		HttpForms(int socket,int code, bool keepalive, std::string ctype, std::string body);
+		HttpForms(int socket,int code, bool keepalive, std::string ctype, std::string body, std::string &res);
 
 		// Destructor
 		~HttpForms();
@@ -40,6 +40,7 @@ class HttpForms
 		//method
 		void _sendclose(void);
 		void _send(void);
+		void _setcodes();
 
 		// Operators
 		HttpForms & operator=(const HttpForms &assign);
