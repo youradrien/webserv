@@ -7,7 +7,7 @@
 
 inline std::string readFile(const std::string& file_path)
 {
-    std::ifstream file(file_path.c_str());
+    std::ifstream file(file_path.c_str(), std::ios::binary);
     if (!file.is_open())
         return ""; // cant open file
 
@@ -125,10 +125,12 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     Request R(buffer, serv, client_socket, bytes_received);
 
     std::string response = R._get_ReqContent();
-    ssize_t sent = send(client_socket, response.c_str(), response.size(), 0);
+    ssize_t sent = send(client_socket, response.data(), response.size(), 0);
+    // std::cerr<<"req:|"<<response.data()<<"|r keep:"<<R.keepalive<<std::endl;
     if (sent < 0)
     {
         std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
+        return true;
     }
     if (!R.keepalive)
     {
@@ -201,5 +203,45 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
     }
 }
 
+
+inline bool is_directory(const char* path)
+{
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0)
+        return false; // path doesn't exist or error
+    return S_ISDIR(statbuf.st_mode);
+}
+
+inline bool is_proper_prefix(const std::string& uri, const std::string& loc)
+{
+    if (uri.compare(0, loc.size(), loc) != 0)
+        return false;
+
+    if (uri.size() == loc.size())
+        return true;
+
+    if (uri[loc.size()] == '/')
+        return true;
+
+    return false;
+}
+
+inline bool match_location(const std::string& uri,const std::vector<LocationConfig> &locations, LocationConfig &_loc_target)
+{
+	bool found=false;
+    std::string best_match = "";
+	std::vector<LocationConfig>::const_iterator it_loc = locations.begin();
+    for(;it_loc != locations.end();it_loc++)
+	{
+        if (is_proper_prefix(uri, it_loc->path)) {
+            if (it_loc->path.length() > best_match.length()) {
+                best_match = it_loc->path;
+				_loc_target = *it_loc;
+				found=true;
+            }
+        }
+    }
+    return found;
+}
 
 #endif
