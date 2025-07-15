@@ -130,6 +130,7 @@
     "mutex": "cpp",
     "variant": "cpp",
     "complex": "cpp",
-    "filesystem": "cpp"
+    "filesystem": "cpp",
+    "set": "cpp"
   }
 }
