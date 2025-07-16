@@ -406,8 +406,6 @@ void Request::Get()
 		// cgi
 		else
 		{
-			std::cerr<<"333\n";
-
 			std::string script_path;
 			char cwd[PATH_MAX];
 			if (getcwd(cwd, sizeof(cwd)) == NULL) {
@@ -418,8 +416,6 @@ void Request::Get()
 			script_path += "/cgi-bin/";
 			script_path += findfrstWExtension(script_path, this->_loc.cgi_extension);
 
-
-			std::cout << script_path << std::endl;
 			std::map<std::string, std::string> env;
 			env["REQUEST_METHOD"] = this->r_method;
 			std::stringstream ss; ss << this->r_body.size();
@@ -456,7 +452,6 @@ void Request::Get()
 			}
 			else
 				body = cgi_output; // no headers? treat all as body
-			std::cerr << "444\n";
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}
 	}

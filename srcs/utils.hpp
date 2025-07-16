@@ -191,16 +191,17 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
         if (method == "POST" && !body.empty())
             write(pipe_in[1], body.c_str(), body.size());
         close(pipe_in[1]);
-
         char buffer[4096];
         std::string output;
-        ssize_t r;
-        while ((r = read(pipe_out[0], buffer, sizeof(buffer))) > 0)
-            output.append(buffer, r);
-
-        close(pipe_out[0]);
+        ssize_t r = 0;
         int status;
-        waitpid(pid, &status, 0);
+        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  // Make pipe non-blocking
+        while(read(pipe_out[0], buffer, sizeof(buffer)) > 0)
+            output.append(buffer, r);
+        usleep(100000 * 5); // sleep 100ms
+        kill(pid, SIGINT);
+        waitpid(pid, &status, WNOHANG);
+        close(pipe_out[0]);
         return output;
     }
 }
