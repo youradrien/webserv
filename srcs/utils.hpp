@@ -4,6 +4,8 @@
 #include <iostream>
 #include "request.hpp"
 #include "webserv.hpp"
+#include <csignal>
+
 
 inline std::string readFile(const std::string& file_path)
 {
