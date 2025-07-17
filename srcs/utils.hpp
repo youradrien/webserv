@@ -45,12 +45,17 @@ inline std::string nonblocking_readcgi(const std::string& file_path, int input_f
             close(fd);
             return "";
         } else if (ret == 0) 
-            {kill(pid,SIGTERM);
-            break ;}
+            {
+                close(fd);
+                kill(pid,SIGTERM);
+            break ;
+        }
         
 
         if (pfd.revents & POLLIN)
         {
+            std::cerr<<"retardboucle\n";
+
             bytes_read = read(fd, buffer, sizeof(buffer));
             if (bytes_read > 0)
                 content.append(buffer, bytes_read);
@@ -63,10 +68,9 @@ inline std::string nonblocking_readcgi(const std::string& file_path, int input_f
                 return "";
             }
         }
+    }while(bytes_read != 0 && (pfd.revents & POLLIN));
 
-    }while(bytes_read != 0);
-
-    // close(fd);
+    close(fd);
     return content;
 }
 
