@@ -18,30 +18,91 @@
 //     return buffer.str();     // Return as a std::string
 // }
 
-inline std::string nonblocking_read(const std::string& file_path)
+
+inline std::string nonblocking_readcgi(const std::string& file_path, int input_fd = -1, int pid =-1)
 {
-    int fd = open(file_path.c_str(), O_RDONLY | O_NONBLOCK);
-    if (fd < 0)
-        return "";  // Can't open file
+    int fd;
+    if(input_fd == - 1){
+     fd = open(file_path.c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0)
+            return "";  // Can't open file
+    }else
+    {
+        fd = input_fd;
+    }
 
     std::string content;
     char buffer[4096];
     struct pollfd pfd;
     pfd.fd = fd;
     pfd.events = POLLIN;
-
-    while (true) {
+    ssize_t time_max = 0;
+    ssize_t bytes_read;
+    do
+    {
         int ret = poll(&pfd, 1, 1000);  // 1 second timeout
         if (ret < 0) {
             close(fd);
             return "";
         } else if (ret == 0) 
-            continue;
+            {kill(pid,SIGTERM);
+            break ;}
         
 
         if (pfd.revents & POLLIN)
         {
-            ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
+            bytes_read = read(fd, buffer, sizeof(buffer));
+            if (bytes_read > 0)
+                content.append(buffer, bytes_read);
+            else if (bytes_read == 0) 
+                {close(fd);break;}
+            else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // try again
+                close(fd);
+                return "";
+            }
+        }
+
+    }while(bytes_read != 0);
+
+    // close(fd);
+    return content;
+}
+
+
+inline std::string nonblocking_read(const std::string& file_path, int input_fd = -1)
+{
+    int fd;
+    if(input_fd == - 1){
+     fd = open(file_path.c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0)
+            return "";  // Can't open file
+    }else
+    {
+        fd = input_fd;
+    }
+
+    std::string content;
+    char buffer[4096];
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    ssize_t time_max = 0;
+    ssize_t bytes_read;
+    do
+    {
+        int ret = poll(&pfd, 1, 1000);  // 1 second timeout
+        if (ret < 0) {
+            close(fd);
+            return "";
+        } else if (ret == 0) 
+            break ;
+        
+
+        if (pfd.revents & POLLIN)
+        {
+            bytes_read = read(fd, buffer, sizeof(buffer));
             if (bytes_read > 0)
                 content.append(buffer, bytes_read);
             else if (bytes_read == 0) 
@@ -53,7 +114,8 @@ inline std::string nonblocking_read(const std::string& file_path)
                 return "";
             }
         }
-    }
+
+    }while(bytes_read != 0);
 
     close(fd);
     return content;
@@ -307,18 +369,13 @@ inline std::string executeCGI(const std::string& scriptPath, const std::string& 
         if (method == "POST" && !body.empty())
             write(pipe_in[1], body.c_str(), body.size());
         close(pipe_in[1]);
-        char buffer[4096];
-        std::string output;
-        ssize_t r = 0;
-        int status;
-        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  // Make pipe non-blocking
-        while(read(pipe_out[0], buffer, sizeof(buffer)) > 0)
-            output.append(buffer, r);
-        usleep(100000 * 5); // sleep 100ms
-        kill(pid, SIGINT);
-        waitpid(pid, &status, WNOHANG);
-        close(pipe_out[0]);
-        return output;
+ 
+        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  
+        std::string ah= nonblocking_readcgi("", pipe_out[0],pid);
+        // kill(pid, SIGINT);
+        // waitpid(pid, &status, 0);
+        // close(pipe_out[1]);
+        return ah;
     }
 }
 
