@@ -96,7 +96,7 @@ void Request::execute(std::string s = "null")
 	if(s == "405")
 	{
 		const std::string&
-				body = readFile("./www/errors/405.html"),
+				body = nonblocking_read("./www/errors/405.html"),
 				contentType = "text/html";
 		std::string bodi = body;
 		bodi += "<h2>" + this->_loc.root + " only handles:</h2>";
@@ -150,9 +150,8 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-			if (!outFile)
-				throw std::ofstream::failure("aFailed to open file");
+			int socket_fd = open(full_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_TRUNC,0644);
+			close(socket_fd);
 		}
 		else if (parsestate && this->r_boundary=="void")
 		{
@@ -170,20 +169,14 @@ void	Request::writeData()
 					safe_name = sanitize_filename(this->file.fname),
 					full_path = this->_loc.upload_store + "/" + safe_name;
 			this->file.name = full_path;
-			std::ofstream outFile(full_path.c_str(), std::ios::trunc | std::ios::binary);
-			if (!outFile)
-				throw std::ofstream::failure("aFailed to open file");
-			outFile << this->r_body;
+			nonblocking_write(full_path, this->r_body.data(), this->r_body.size());
 			break;
 		}
 		else
 		{
 			std::string& filename = this->file.name;
 			const std::string& content = buf+'\n';
-			std::ofstream outFile(filename.c_str(),std::ios::app | std::ios::binary);  // Creates the file if it doesn't exist
-			if (!outFile)
-				throw std::ofstream::failure("bFailed to open file");
-			outFile << content;
+			nonblocking_write(filename.c_str(), content.data(), content.size());
 		}
 
 	}
@@ -226,7 +219,8 @@ void Request::Post()
 	char buffer[2048];
 	while (this->_bytes_rec < content_length)
 	{
-		ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
+		//ssize_t ret = recv(this->_socket, buffer, sizeof(buffer), 0);
+		ssize_t ret = nonblocking_recv(this->_socket, buffer, sizeof(buffer));
 		if (ret == 0)
 			break;
 		if (ret < 0)
@@ -269,35 +263,21 @@ void Request::Get()
     std::string file_path;
 
     struct stat st;
+
 	if (stat(full_path.c_str(), &st) == 0)
     {
-		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() 
-		|| ((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
+		if (S_ISDIR(st.st_mode) && (!this->_loc.index.empty() ||
+		((&(this->_loc.cgi_extension) != NULL && !this->_loc.cgi_extension.empty())) ))
         {
 			file_path = full_path + "/" + this->_loc.index;
-			// if has someth after loc (potential valid file to GET)
-			if(this->location_filename.size() > this->_loc.root.size())
+			if(this->location_filename.size()> this->_loc.root.size())
 			{
-				// std::string::size_type pos = this->location_filename.rfind('/');
-				// if (pos != std::string::npos && this->_loc.upload_store.size() >= 1)
-				// 	this->location_filename.insert(pos, this->_loc.upload_store.substr(1));
-				// std::string rez = "..";
-				// pos = this->location_filename.rfind('/');
-				// for (std::string::size_type i = 0; i < this->location_filename.length(); ++i)
-				// 	if (this->location_filename[i] != '.'|| (i > pos))
-				// 		rez += this->location_filename[i];
-				// this->location_filename = (rez);
-				std::string::size_type p = this->location_filename.rfind('/');
-				this->location_filename = this->location_filename.substr(p); // Skip the '/'
-				this->location_filename.insert(0, this->_loc.upload_store);
-				std::cout << "'"<< this->location_filename << "'" << std::endl;
 				file_path = this->location_filename;
 				if (is_directory(file_path.c_str()))
 					file_path = "[AUTOINDEX]";
 				else
 				{
 					std::ifstream file(file_path.c_str());
-					std::cerr << "err: openning: " << file_path << std::endl;
 					if(!file.is_open())
 						file_path = "[404]";
 				}
@@ -338,7 +318,7 @@ void Request::Get()
 			closedir(dir);
 		}
 
-		std::string body = readFile("./www/errors/autoindex.html");
+		std::string body = nonblocking_read("./www/errors/autoindex.html");
 		size_t pos = body.find("<!--CONTENT-->");
 		if (pos != std::string::npos) {
 			body.replace(pos, std::string("<!--CONTENT-->").length(), listing.str());
@@ -360,7 +340,7 @@ void Request::Get()
 			}
 		}
 		const std::string&
-				body = readFile(path_404),
+				body = nonblocking_read(path_404),
 				contentType = "text/html";
 		HttpForms notfound(this->_socket, 404,this->keepalive,contentType, body,this->_ReqContent);
 	}
@@ -379,7 +359,7 @@ void Request::Get()
 			}
 		}
 		const std::string&
-				body = readFile(path_403),
+				body = nonblocking_read(path_403),
 				contentType = "text/html";
 		HttpForms forbid(this->_socket, 403,this->keepalive, contentType, body,this->_ReqContent);
 	}
@@ -399,7 +379,7 @@ void Request::Get()
 		if(&(this->_loc.cgi_extension) == NULL || this->_loc.cgi_extension.empty())
 		{
 			const std::string&
-				body = readFile(file_path);
+				body = nonblocking_read(file_path);
 				std::string contentType=file_path.substr(file_path.rfind(".")+1);
 			HttpForms ok(this->_socket, 200,this->keepalive, contentType, body,this->_ReqContent);
 		}

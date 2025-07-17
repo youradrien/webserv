@@ -85,17 +85,7 @@ HttpForms::HttpForms(int socket,int code, bool keepalive, std::string ctype, std
 	this->_response = res.str();
 	req = this->_response;
 }
-void HttpForms::_sendclose(void)
-{
-	send(this->_socket, this->_response.data(), this->_response.size(),0);
 
-	close(this->_socket);
-}
-void HttpForms::_send(void)
-{
-
-	send(this->_socket, this->_response.data(), this->_response.size(),0);
-}
 
 void HttpForms::_setcodes(void)
 {
