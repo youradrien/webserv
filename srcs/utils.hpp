@@ -62,8 +62,6 @@ inline std::string nonblocking_readcgi(const std::string& file_path, int input_f
             else if (bytes_read == 0) 
                 {close(fd);break;}
             else {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    continue; // try again
                 close(fd);
                 return "";
             }
@@ -112,8 +110,7 @@ inline std::string nonblocking_read(const std::string& file_path, int input_fd =
             else if (bytes_read == 0) 
                 break;
             else {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    continue; // try again
+
                 close(fd);
                 return "";
             }
@@ -294,11 +291,6 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
         totalrec += bytes_received;
         if (bytes_received < 0)
         {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                std::cerr<<"HANDLE clientsocket pollin: "<<client_socket<<"\n";
-                return false;
-            }
             std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
             return true; // done with this socket (error, cleanup)
         }
@@ -323,7 +315,6 @@ inline bool handle_client(int client_socket,  ServerConfig &serv)
     }
     if (sent < 0)
     {
-        std::cerr << "\033[31m[x] send() failed: " << strerror(errno) << "\033[0m\n";
         return true;
     }
     if (!R.keepalive)

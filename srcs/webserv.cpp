@@ -50,7 +50,6 @@ void Webserv::init(void)
             // Allow address reuse
             int opt = 1;
             if (setsockopt(serv_.server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-                std::cerr << "Error setting socket options: " << strerror(errno) << std::endl;
                 close(serv_.server_socket);
                 continue;;
             }
@@ -82,7 +81,6 @@ void Webserv::init(void)
                 i--;
                 continue;
             }
-            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
             close(serv_.server_socket);
             continue;
         }
@@ -90,7 +88,6 @@ void Webserv::init(void)
         // Listen for incoming connections
         if (listen(serv_.server_socket, SOMAXCONN) < 0)
         {
-            std::cerr << "Error listening on socket: " << strerror(errno) << std::endl;
             close(serv_.server_socket);
             return;
         }

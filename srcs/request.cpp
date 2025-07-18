@@ -225,13 +225,8 @@ void Request::Post()
 			break;
 		if (ret < 0)
 		{
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-				continue; // retry the recv
-			else {
-				std::cerr << "\033[31m [x] post fatal recv err socket: " << this->_socket << " (" << strerror(errno) << ")\033[0m\n";
-				HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n",this->_ReqContent);
-				return;
-			}
+			HttpForms ServError(this->_socket, 500,this->keepalive,"text/plain","Failed to receive POST data.\r\n",this->_ReqContent);
+			return;
 		}
 		this->ret = ret;
 		this->r_body.append(buffer, ret);
