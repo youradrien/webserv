@@ -2,6 +2,9 @@
 #include "request.hpp"
 #include "HttpForms.hpp"
 #include "utils.hpp"
+#include "client.hpp"
+#include "cgi_handler.hpp"
+
 
 Webserv::Webserv(void)
 {
@@ -24,6 +27,18 @@ Webserv::~Webserv()
         }
     }
 }
+void deleteAllClients(std::map<int, client*> &clientlist)
+{
+    std::map<int, client*>::iterator it;
+
+    for (it = clientlist.begin(); it != clientlist.end(); ++it)
+    {
+        if (it->second)
+            delete it->second; 
+    }
+
+    clientlist.clear(); 
+}
 
 void Webserv::init(void)
 {
@@ -35,9 +50,7 @@ void Webserv::init(void)
             std::cerr << "Wrong .conf initialization [ports | domain | methods | root]!" << std::endl;
             continue;
         }
-
         serv_.client_addr_len = sizeof(serv_.client_addr);
-        // create server socket
         serv_.server_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (serv_.port < 1024)
             std::cerr << "Warning: Using a port below 1024 may require elevated privileges." << std::endl;
@@ -46,12 +59,12 @@ void Webserv::init(void)
             perror("Error creating socket");
             continue;
         }else {
-            // std::cout << "Socket created successfully, server_socket = " << serv_.server_socket  << std::endl;
             // Allow address reuse
             int opt = 1;
             if (setsockopt(serv_.server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+                std::cerr << "Error setting socket options: " << strerror(errno) << std::endl;
                 close(serv_.server_socket);
-                continue;;
+                continue;
             }
         }
 
@@ -69,7 +82,6 @@ void Webserv::init(void)
             exit(EXIT_FAILURE);
         }
 
-
         // bind socket to address and port
         // (turns [address, port] -> [fd] )
         if (bind(serv_.server_socket, (struct sockaddr*)&serv_.server_addr, sizeof(serv_.server_addr)) < 0)
@@ -81,6 +93,7 @@ void Webserv::init(void)
                 i--;
                 continue;
             }
+            std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
             close(serv_.server_socket);
             continue;
         }
@@ -88,6 +101,7 @@ void Webserv::init(void)
         // Listen for incoming connections
         if (listen(serv_.server_socket, SOMAXCONN) < 0)
         {
+            std::cerr << "Error listening on socket: " << strerror(errno) << std::endl;
             close(serv_.server_socket);
             return;
         }
@@ -98,7 +112,6 @@ void Webserv::init(void)
 
 // SIGINT 
 volatile sig_atomic_t g_terminate = 0;
-
 inline void handle_sigint(int signal)
 {
     if (signal == SIGINT)
@@ -108,108 +121,188 @@ inline void handle_sigint(int signal)
 void Webserv::start(void)
 {
     std::vector<pollfd> poll_fds;
+    std::list<pollfd> poll_fds_list;
     std::map<int, ServerConfig*> client_fd_to_server; // client_socket -> svconfig
     std::map<int, ServerConfig*> fd_to_server;        // server_socket -> svconfig
     std::vector<int> fds_to_remove;
     std::set<int> server_fds;
+    std::map<int, client*> clientlist;
 
-    // Register all server sockets
+    // reigster all server sockets
     for (size_t i = 0; i < this->servers.size(); ++i)
     {
         int server_fd = this->servers[i].server_socket;
 
         pollfd pfd;
         pfd.fd = server_fd;
-        pfd.events = POLLIN;
-        poll_fds.push_back(pfd);
+        pfd.events = POLLIN;// | POLLOUT; 
         pfd.revents = 0;
+        poll_fds.push_back(pfd);
         fd_to_server[server_fd] = &this->servers[i];
         server_fds.insert(server_fd); // track listening sockets
     }
 
     std::cout << "\033[92m ===== STARTED " << poll_fds.size() << " SERVERZ ===== \033[0m" << std::endl;
-    std::signal(SIGINT, handle_sigint);     
+    std::signal(SIGINT, handle_sigint);  
+       
     while (!g_terminate)
     {
-        int ret = poll(poll_fds.data(), poll_fds.size(), 100); // 100ms timeoutt
+        ///////////////////////////
+        //ADD CGI HANDLER TO POLL//
+        ///////////////////////////
+        for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
+        {
+            client* client_ptr = it->second;
+            if (client_ptr->cgi_handler && client_ptr->cgi_fd > -1 && client_ptr->cgi_handler->registered == 0)
+            {
+                client_ptr->cgi_handler->registered = 1;
+                struct pollfd 
+                    cgi_pfd;
+                    cgi_pfd.fd = client_ptr->cgi_fd;
+                    cgi_pfd.events = POLLIN;
+                    cgi_pfd.revents = 0;
+                poll_fds.push_back(cgi_pfd);
+            }
+        }
 
+
+        //////////////////////
+        //  single poll()?  //
+        //////////////////////
+        int ret = poll(poll_fds.data(), poll_fds.size(), 500); // 100ms timeoutt
         if (ret < 0)
         {
             if (errno == EINTR) continue; // poll was interrupted by signal
             perror("poll");
             break;
         }
-         if (ret ==0)
-        {
+         if (ret == 0)
             continue;
-        }
-
         fds_to_remove.clear();
 
+
+        /////////////////////////////////////////////////////////////
+        //LOOPING THROUGH ALL REGISTERD PFD TO FIND THE PINGED ONES//
+        /////////////////////////////////////////////////////////////
         for (size_t i = 0; i < poll_fds.size(); ++i)
         {
             struct pollfd& pfd = poll_fds[i];
-            if (!(pfd.revents & POLLIN))
+            
+        
+            ////////////////////////////////////////////////////////////////////
+            // answer client via SOCKET IF READY TO RECEIVE DATA(POLLOUT).    //
+            ////////////////////////////////////////////////////////////////////
+            if ((pfd.revents & POLLOUT) && pfd.events == POLLOUT && clientlist.count(pfd.fd))
+            {
+                if (clientlist[pfd.fd]->getStatus() == WRITING)
+                {
+                    if (!clientlist[pfd.fd]->answerClient(pfd))
+                        continue ;
+                    if (clientlist[pfd.fd]->keepalive == false)
+                    {
+                        close(pfd.fd);
+                        fds_to_remove.push_back(pfd.fd);
+                        delete clientlist[pfd.fd];
+                        clientlist.erase(pfd.fd);
+                    }
+                }
+                continue ;
+            }
+
+           
+
+
+            /////////////////////////////////////////
+            //READING THE CGI RESULT ON HIS PIPE FD//
+            /////////////////////////////////////////
+            for (std::map<int, client*>::iterator it = clientlist.begin(); it != clientlist.end(); ++it)
+            {
+                client* client_ptr = it->second;
+                if (client_ptr->cgi_handler && client_ptr->cgi_fd == pfd.fd )
+                {
+                    if (pfd.revents & (POLLIN | POLLHUP))
+                    {
+                        if (client_ptr->cgi_handler->readOutput()) 
+                        {
+                            fds_to_remove.push_back(pfd.fd);
+                            client_ptr->status = WRITING;
+                            delete client_ptr->cgi_handler;
+                            client_ptr->cgi_handler = NULL;
+                            struct pollfd* change_event = findPollfd(poll_fds, client_ptr->getFd());
+                            if (change_event)
+                            {
+                                change_event->events = POLLOUT; // Set to POLLOUT for writing response
+                            }
+                        }
+                    }
+                }
+            }
+
+
+
+            ////////////////////////////////////////////////////////
+            if (!(pfd.revents & (POLLIN | POLLOUT | POLLHUP)))
                 continue;
 
+
+
+            //////////////////////////////////////////////////////////////////////////////
+            //IF THE POLLED FD IS A SERVER FD, MEANS NEW CLIENT. CREATE A SOCKET FOR HIM//
+            //////////////////////////////////////////////////////////////////////////////
             if (server_fds.count(pfd.fd))
             {
                 ServerConfig* serv = fd_to_server[pfd.fd];
                 if (!serv)
                 {
-                    std::cerr << "Error: no ServerConfig for fd " << pfd.fd << std::endl;
                     continue;
                 }
-                int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);
-                
+                int client_fd = accept(pfd.fd, (struct sockaddr*)&(serv->client_addr), &serv->client_addr_len);                
                 if (client_fd < 0)
                     continue;
-                std::cerr<<"create socket n:"<<client_fd<<std::endl;
 
                 // socket timeout (optional, useful)
                 struct timeval timeout = {10, 0}; // 10 seconds
                 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-
+                
                 // make non-blocking
                 int flags = fcntl(client_fd, F_GETFL, 0);
                 if (flags != -1)
                     fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 
-                // track new client socket
-                pollfd client_pfd;
-                client_pfd.fd = client_fd;
-                client_pfd.events = POLLIN;
-                client_pfd.revents = 0;
+
+                pollfd 
+                    client_pfd;
+                    client_pfd.fd = client_fd;
+                    client_pfd.events = POLLIN;// | POLLOUT;
+                    client_pfd.revents = 0;
                 poll_fds.push_back(client_pfd);
                 client_fd_to_server[client_fd] = serv;
-
+                clientlist[client_fd] = new client(client_pfd, serv);
             }
-            // handle client req
-            else
+            //////////////////////////////////////////////////////////////
+            //POLL FD ISNT A SERV, SO A CLIENT ALREADY CREATED, TREAT IT//
+            //////////////////////////////////////////////////////////////
+            else 
             {
                 ServerConfig* serv = client_fd_to_server[pfd.fd];
                 if (!serv)
                     continue;
-
-                bool done = handle_client(pfd.fd, *serv);
-                if (done)
-                {
-                    std::cerr<<"delete socket n:"<<pfd.fd<<std::endl;
-                    close(pfd.fd);
-                    fds_to_remove.push_back(pfd.fd);
-                }
+                clientlist[pfd.fd]->handle_jesus(pfd);
             }
         }
 
-        // clean-up client sockets
+
+
+        ///////////////////////////////
+        //CLEANING.                  //
+        ///////////////////////////////
         for (size_t j = 0; j < fds_to_remove.size(); ++j)
         {
             int fd = fds_to_remove[j];
-
-            if (server_fds.count(fd)) continue; // do not remove server sockets
-
+            if (server_fds.count(fd)) // do not remove server sockets
+                continue; 
+            // std::cerr << "erasing: "<< fd;
             client_fd_to_server.erase(fd);
-
             for (std::vector<struct pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
             {
                 if (it->fd == fd)
@@ -220,6 +313,9 @@ void Webserv::start(void)
             }
         }
     }
+
+
+    deleteAllClients(clientlist);
     // Close all client sockets
     for (std::map<int, ServerConfig*>::iterator it = client_fd_to_server.begin(); it != client_fd_to_server.end(); ++it)
         close(it->first);
@@ -228,3 +324,8 @@ void Webserv::start(void)
         close(*it);
     std::cout << "Server shutdown gracefully.\n";
 }
+
+
+
+
+

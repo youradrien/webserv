@@ -7,18 +7,6 @@
 #include <csignal>
 
 
-// inline std::string readFile(const std::string& file_path)
-// {
-//     std::ifstream file(file_path.c_str(), std::ios::binary);
-//     if (!file.is_open())
-//         return ""; // cant open file
-
-//     std::stringstream buffer;
-//     buffer << file.rdbuf();  // Read entire file contents into buffer
-//     return buffer.str();     // Return as a std::string
-// }
-
-
 inline std::string nonblocking_readcgi(const std::string& file_path, int input_fd = -1, int pid =-1)
 {
     int fd;
@@ -36,11 +24,10 @@ inline std::string nonblocking_readcgi(const std::string& file_path, int input_f
     struct pollfd pfd;
     pfd.fd = fd;
     pfd.events = POLLIN;
-    ssize_t time_max = 0;
     ssize_t bytes_read;
     do
     {
-        int ret = poll(&pfd, 1, 1000);  // 1 second timeout
+        int ret = poll(&pfd, 1, 4000);  // 1 second timeout
         if (ret < 0) {
             close(fd);
             return "";
@@ -62,6 +49,8 @@ inline std::string nonblocking_readcgi(const std::string& file_path, int input_f
             else if (bytes_read == 0) 
                 {close(fd);break;}
             else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // try again
                 close(fd);
                 return "";
             }
@@ -90,7 +79,6 @@ inline std::string nonblocking_read(const std::string& file_path, int input_fd =
     struct pollfd pfd;
     pfd.fd = fd;
     pfd.events = POLLIN;
-    ssize_t time_max = 0;
     ssize_t bytes_read;
     do
     {
@@ -101,7 +89,6 @@ inline std::string nonblocking_read(const std::string& file_path, int input_fd =
         } else if (ret == 0) 
             break ;
         
-
         if (pfd.revents & POLLIN)
         {
             bytes_read = read(fd, buffer, sizeof(buffer));
@@ -110,7 +97,8 @@ inline std::string nonblocking_read(const std::string& file_path, int input_fd =
             else if (bytes_read == 0) 
                 break;
             else {
-
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue; // try again
                 close(fd);
                 return "";
             }
@@ -120,69 +108,6 @@ inline std::string nonblocking_read(const std::string& file_path, int input_fd =
 
     close(fd);
     return content;
-}
-
-inline ssize_t nonblocking_recv(int socket_fd, char *buffer, unsigned int n)
-{
-    (void)(n);
-    struct pollfd pfd;
-    pfd.fd = (socket_fd);
-    pfd.events = POLLIN;
-
-
-    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
-    if (ret < 0)
-    {
-        return -1;
-    }
-    if (pfd.revents & POLLIN)
-    {
-        return recv(socket_fd, buffer, sizeof(buffer), 0);
-    }
-
-    return -1;
-}
-inline ssize_t nonblocking_send(int socket_fd, const void *s, unsigned int size)
-{
-    struct pollfd pfd;
-    pfd.fd = (socket_fd);
-    pfd.events = POLLOUT;
-
-
-    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
-    if (ret < 0)
-    {
-        return -1;
-    }
-    if (pfd.revents & POLLOUT)
-    {
-        return send(socket_fd, s, size, 0);
-    }
-
-    return (-1);
-}
-
-inline ssize_t nonblocking_write(std::string file_path, const void *s, unsigned int size)
-{
-    int socket_fd = open(file_path.c_str(), O_WRONLY | O_NONBLOCK | O_CREAT | O_APPEND,0644);
-    if (socket_fd < 0)
-        return -1;  // Can't open file
-    struct pollfd pfd;
-    pfd.fd = (socket_fd);
-    pfd.events = POLLOUT;
-
-    int ret = poll(&pfd, 1, 200);  // 0.2 second timeout
-    if (ret < 0)
-    {
-        return -1;
-    }
-    if (pfd.revents & POLLOUT)
-    {
-        ssize_t q = write(socket_fd, s, size);
-        close(socket_fd);
-        return(q);
-    }
-    return (-1);
 }
 
 
@@ -270,109 +195,6 @@ inline char** buildEnvp(std::map<std::string, std::string>& env)
     return envp;
 }
 #define MAX_HEADER_SIZE 8192  // 8 KB
-inline bool handle_client(int client_socket,  ServerConfig &serv)
-{
-    char buffer[2048];
-    std::string chunky="", response;
-    ssize_t 
-        totalrec=0,
-        bytes_received = 0;
-    bool joe = false;
-    do
-    {
-        if(!joe)
-            bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-        else
-        {
-            joe=true;    
-            bytes_received = nonblocking_recv(client_socket, buffer, sizeof(buffer));
-        }
-
-        totalrec += bytes_received;
-        if (bytes_received < 0)
-        {
-            std::cerr << "\033[31m[x] recv() error on client " << client_socket << ": " << strerror(errno) << "\033[0m\n";
-            return true; // done with this socket (error, cleanup)
-        }
-        else if (bytes_received == 0)
-        {
-            std::cerr << "\033[33m[~] Client disconnected: " << client_socket << "\033[0m\n";
-            return true;
-        }
-        chunky.append(buffer,bytes_received);
-    } while (chunky.find("\r\n\r\n") == std::string::npos);
-    
-
-    // log  received HTTP request
-    Request R(buffer, serv, client_socket, totalrec);
-
-    response = R._get_ReqContent();
-    size_t sent=0, total=0;
-    while (total <response.size() && sent >=0)
-    {
-        sent = nonblocking_send(client_socket, response.data() + total, response.size() - total);
-        total += sent;
-    }
-    if (sent < 0)
-    {
-        return true;
-    }
-    if (!R.keepalive)
-    {
-        return true;
-    }
-    return false;
-}
-
-// - exec CGI script in a fork()
-// - returns CGI stdout in a std::str
-inline std::string executeCGI(const std::string& scriptPath, const std::string& method, const std::string& body, std::map<std::string, std::string> env)
-{
-    int pipe_out[2];
-    int pipe_in[2];
-
-    if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
-        perror("pipe");
-        return "status: 500\r\n\r\nInternal Server Error";
-    }
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        return "status: 500\r\n\r\nfork Failed";
-    }
-	std::cout << "running " << scriptPath << "..." << std::endl;
-	// c
-    if (pid == 0)
-	{
-        // Child
-        dup2(pipe_in[0], STDIN_FILENO);	dup2(pipe_out[1], STDOUT_FILENO);
-        close(pipe_in[1]);	close(pipe_out[0]);
-
-        char* argv[] = { (char*)scriptPath.c_str(), NULL };
-        char** envp = buildEnvp(env);
-
-        execve(scriptPath.c_str(), argv, envp);
-        perror("execve");
-        exit(1);
-    }
-	// p
-	else
-	{
-        close(pipe_in[0]);
-        close(pipe_out[1]);
-        if (method == "POST" && !body.empty())
-            write(pipe_in[1], body.c_str(), body.size());
-        close(pipe_in[1]);
- 
-        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);  
-        std::string ah= nonblocking_readcgi("", pipe_out[0],pid);
-        // kill(pid, SIGINT);
-        // waitpid(pid, &status, 0);
-        // close(pipe_out[1]);
-        return ah;
-    }
-}
 
 
 inline bool is_directory(const char* path)
@@ -414,5 +236,18 @@ inline bool match_location(const std::string& uri,const std::vector<LocationConf
     }
     return found;
 }
+
+inline pollfd* findPollfd(std::vector<pollfd>& poll_fds, int target_fd)
+{
+    for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end(); ++it)
+    {
+        if (it->fd == target_fd)
+        {
+            return &(*it); // retourne un pointeur vers la struct pollfd
+        }
+    }
+    return NULL; // si non trouvé
+}
+
 
 #endif

@@ -5,6 +5,7 @@
 // Constructors
 HttpForms::HttpForms(int socket,int code, bool keepalive): _socket(socket)
 {
+	(void)(this->_socket);
 	this->_setcodes();
 	this->_body = "";
 	this->_content_type = "";
